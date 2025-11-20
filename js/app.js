@@ -72,7 +72,7 @@ const app = {
 
         // Top 6 articles for Hero
         const recentArticles = articles.slice(0, 6);
-        
+
         recentArticles.forEach((article, index) => {
             const card = document.createElement('div');
             card.className = 'hero-card data-card';
@@ -82,9 +82,14 @@ const app = {
             card.dataset.excerpt = article.excerpt.toLowerCase();
             card.onclick = () => this.handleNav(article.link);
 
+            // Optimize Wix image URL for faster loading
+            const optimizedImage = this.optimizeWixImage(article.image, 700);
+            const loading = index < 3 ? 'eager' : 'lazy';
+            const fetchpriority = index < 2 ? 'high' : 'low';
+
             card.innerHTML = `
                 <div class="hero-image-wrap">
-                    <img src="${article.image}" alt="${article.title}" class="hero-image" loading="eager" fetchpriority="high" decoding="async" />
+                    <img src="${optimizedImage}" alt="${article.title}" class="hero-image" loading="${loading}" fetchpriority="${fetchpriority}" decoding="async" />
                 </div>
                 <div class="hero-content">
                     <div>
@@ -99,6 +104,14 @@ const app = {
                 </div>
             `;
             heroTrack.appendChild(card);
+
+            // Fade in image when loaded
+            const img = card.querySelector('.hero-image');
+            if (img.complete) {
+                img.classList.add('loaded');
+            } else {
+                img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+            }
         });
 
         this.buildHeroMarquee(heroTrack);
@@ -113,7 +126,7 @@ const app = {
             biotech: document.getElementById('container-biotech')
         };
 
-        articles.forEach(article => {
+        articles.forEach((article, globalIndex) => {
             const container = containers[article.category];
             if (container) {
                 const card = document.createElement('div');
@@ -124,9 +137,12 @@ const app = {
                 card.dataset.excerpt = article.excerpt.toLowerCase();
                 card.onclick = () => this.handleNav(article.link);
 
+                // Optimize Wix image URL for faster loading
+                const optimizedImage = this.optimizeWixImage(article.image, 500);
+
                 card.innerHTML = `
                     <div class="std-image-wrap">
-                        <img src="${article.image}" alt="${article.title}" class="std-image" loading="eager" fetchpriority="low" decoding="async" />
+                        <img src="${optimizedImage}" alt="${article.title}" class="std-image" loading="lazy" decoding="async" />
                     </div>
                     <div class="std-content">
                         <span class="tag std-cat">${this.getCategoryLabel(article.category)}</span>
@@ -138,6 +154,14 @@ const app = {
                     </div>
                 `;
                 container.appendChild(card);
+
+                // Fade in image when loaded
+                const img = card.querySelector('.std-image');
+                if (img.complete) {
+                    img.classList.add('loaded');
+                } else {
+                    img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+                }
             }
         });
 
@@ -230,22 +254,32 @@ const app = {
         });
     },
 
+    optimizeWixImage(url, width = 800) {
+        // Wix image optimization: add width parameter for resized, optimized images
+        if (!url || !url.includes('wixstatic.com')) return url;
+
+        try {
+            const urlObj = new URL(url);
+            // Add width parameter for automatic Wix optimization
+            urlObj.searchParams.set('w', width);
+            return urlObj.toString();
+        } catch (e) {
+            return url;
+        }
+    },
+
     preloadTopImages() {
-        const top = articles.slice(0, 8).map(a => a.image);
+        // Only preload the first 3 hero images with optimized size
+        const top = articles.slice(0, 3).map(a => this.optimizeWixImage(a.image, 700));
         const head = document.head;
 
-        top.forEach((src) => {
+        top.forEach((src, index) => {
             const link = document.createElement('link');
             link.rel = 'preload';
             link.as = 'image';
             link.href = src;
-            link.fetchpriority = 'high';
+            link.fetchpriority = index === 0 ? 'high' : 'low';
             head.appendChild(link);
-
-            const img = new Image();
-            img.decoding = 'async';
-            img.fetchpriority = 'high';
-            img.src = src;
         });
     }
 };

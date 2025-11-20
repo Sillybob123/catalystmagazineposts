@@ -1,20 +1,19 @@
 /* --- RESET & CORE --- */
 :root {
-    --bg-body: #ffffff;
-    --bg-pattern: radial-gradient(circle at 20% 20%, rgba(15, 94, 240, 0.06), transparent 25%), radial-gradient(circle at 80% 0%, rgba(115, 103, 240, 0.05), transparent 25%), radial-gradient(circle at 50% 70%, rgba(15, 23, 42, 0.04), transparent 32%);
+    --bg-body: transparent;
     --text-primary: #0f172a;
     --text-secondary: #6b7280;
     --accent-blue: #0f5ef0;
     --accent-purple: #7c3aed;
-    --glass-bg: rgba(255, 255, 255, 0.92);
+    --glass-bg: rgba(255, 255, 255, 0.95);
     --card-bg: #ffffff;
-    --shadow-sm: 0 2px 12px rgba(15, 23, 42, 0.06);
-    --shadow-md: 0 12px 36px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 20px 60px rgba(15, 23, 42, 0.1);
-    --card-shadow: 0 16px 50px rgba(15, 23, 42, 0.08);
-    --radius-lg: 20px;
-    --radius-md: 16px;
-    --radius-sm: 12px;
+    --shadow-sm: 0 2px 12px rgba(15, 23, 42, 0.08);
+    --shadow-md: 0 12px 36px rgba(15, 23, 42, 0.1);
+    --shadow-lg: 0 20px 60px rgba(15, 23, 42, 0.12);
+    --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
     --hero-shift: -1200px;
     --hero-duration: 40s;
 }
@@ -23,20 +22,21 @@
 
 body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg-body);
-    background-image: var(--bg-pattern);
-    background-attachment: fixed;
+    background: transparent;
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     padding-bottom: 60px;
     overflow-x: hidden;
     line-height: 1.6;
+    width: 100%;
+    min-height: 100vh;
 }
 
 .feed-container {
-    width: min(1400px, 100%);
+    width: 100%;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 12px clamp(16px, 3vw, 48px) 80px;
+    padding: 12px clamp(12px, 2.5vw, 32px) 60px;
     display: flex;
     flex-direction: column;
     gap: 32px;
@@ -56,9 +56,10 @@ body {
 }
 
 .header-content {
-    width: min(1400px, 100%);
+    width: 100%;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 0 clamp(16px, 3vw, 48px);
+    padding: 0 clamp(12px, 2.5vw, 32px);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -219,34 +220,46 @@ body {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 80px;
+    width: 60px;
     pointer-events: none;
     z-index: 2;
 }
 
 .hero-section::before {
     left: 0;
-    background: linear-gradient(90deg, var(--bg-body), transparent);
+    background: linear-gradient(90deg, rgba(255,255,255,1), transparent);
 }
 
 .hero-section::after {
     right: 0;
-    background: linear-gradient(270deg, var(--bg-body), transparent);
+    background: linear-gradient(270deg, rgba(255,255,255,1), transparent);
 }
 
 .hero-image-wrap {
     width: 100%;
     overflow: hidden;
     aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
 }
 
 .hero-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.6s ease;
+    transition: transform 0.6s ease, opacity 0.3s ease;
     image-rendering: -webkit-optimize-contrast;
+    opacity: 0;
 }
+
+.hero-image[loading="lazy"] {
+    opacity: 1;
+}
+
+.hero-image.loaded,
+.hero-image[loading="eager"] {
+    opacity: 1;
+}
+
 .hero-card:hover .hero-image { transform: scale(1.05); }
 
 .hero-content {
@@ -323,9 +336,21 @@ body {
 
 .std-track {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 20px;
     padding: 5px 0 24px 0;
+}
+
+@media (min-width: 640px) {
+    .std-track {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .std-track {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
 }
 
 .std-card {
@@ -361,7 +386,7 @@ body {
 .std-image-wrap {
     width: 100%;
     overflow: hidden;
-    background: #f3f4f6;
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
     aspect-ratio: 16 / 10;
 }
 
@@ -369,8 +394,15 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    transition: transform 0.5s ease, opacity 0.3s ease;
+    opacity: 0;
 }
+
+.std-image.loaded,
+.std-image[loading="lazy"] {
+    opacity: 1;
+}
+
 .std-card:hover .std-image { transform: scale(1.05); }
 
 .std-content {
@@ -415,7 +447,28 @@ body {
 }
 
 @media (max-width: 768px) {
-    .hero-card { min-height: 360px; flex: 0 0 280px; }
-    .std-track { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+    .hero-card {
+        min-height: 360px;
+        flex: 0 0 min(280px, 85vw);
+    }
     .category-title, .section-header { padding-left: 2px; }
+    .feed-container {
+        padding: 12px 12px 40px;
+    }
+    .hero-section::before,
+    .hero-section::after {
+        width: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-card {
+        flex: 0 0 min(260px, 90vw);
+    }
+    .sticky-header {
+        padding-top: 8px;
+    }
+    .search-input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
 }
