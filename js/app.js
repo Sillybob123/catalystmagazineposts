@@ -1,6 +1,7 @@
 const app = {
     init() {
         this.sortArticles();
+        this.preloadTopImages();
         this.renderHero();
         this.renderCategories();
         this.initSearch();
@@ -83,12 +84,13 @@ const app = {
 
             card.innerHTML = `
                 <div class="hero-image-wrap">
-                    <img src="${article.image}" alt="${article.title}" class="hero-image" loading="eager" />
+                    <img src="${article.image}" alt="${article.title}" class="hero-image" loading="eager" fetchpriority="high" decoding="async" />
                 </div>
                 <div class="hero-content">
                     <div>
                         <span class="tag hero-tag" data-cat="${article.category}">${this.getCategoryLabel(article.category)}</span>
                         <h3 class="hero-headline">${article.title}</h3>
+                        <p class="hero-excerpt">${article.excerpt}</p>
                     </div>
                     <div class="meta">
                         <span>${article.date}</span>
@@ -98,6 +100,8 @@ const app = {
             `;
             heroTrack.appendChild(card);
         });
+
+        this.buildHeroMarquee(heroTrack);
     },
 
     renderCategories() {
@@ -122,7 +126,7 @@ const app = {
 
                 card.innerHTML = `
                     <div class="std-image-wrap">
-                        <img src="${article.image}" alt="${article.title}" class="std-image" loading="eager" />
+                        <img src="${article.image}" alt="${article.title}" class="std-image" loading="eager" fetchpriority="low" decoding="async" />
                     </div>
                     <div class="std-content">
                         <span class="tag std-cat">${this.getCategoryLabel(article.category)}</span>
@@ -201,6 +205,48 @@ const app = {
         });
 
         sections.forEach(section => observer.observe(section));
+    },
+
+    buildHeroMarquee(track) {
+        const cards = Array.from(track.querySelectorAll('.hero-card'));
+        if (cards.length === 0) return;
+
+        // Duplicate cards for seamless loop
+        cards.forEach(card => {
+            const clone = card.cloneNode(true);
+            clone.dataset.clone = 'true';
+            track.appendChild(clone);
+        });
+
+        // Calculate shift based on card width + gap
+        requestAnimationFrame(() => {
+            const firstCard = track.querySelector('.hero-card');
+            const style = getComputedStyle(track);
+            const gap = parseInt(style.columnGap || style.gap || '20', 10);
+            const cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 320;
+            const totalWidth = (cardWidth + gap) * cards.length;
+            track.style.setProperty('--hero-shift', `-${totalWidth}px`);
+            track.style.setProperty('--hero-duration', `${Math.max(cards.length * 8, 30)}s`);
+        });
+    },
+
+    preloadTopImages() {
+        const top = articles.slice(0, 8).map(a => a.image);
+        const head = document.head;
+
+        top.forEach((src) => {
+            const link = document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'image';
+            link.href = src;
+            link.fetchpriority = 'high';
+            head.appendChild(link);
+
+            const img = new Image();
+            img.decoding = 'async';
+            img.fetchpriority = 'high';
+            img.src = src;
+        });
     }
 };
 
