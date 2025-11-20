@@ -4,6 +4,8 @@ const app = {
         this.renderHero();
         this.renderCategories();
         this.initSearch();
+        this.bindNav();
+        this.observeSections();
     },
 
     sortArticles() {
@@ -27,22 +29,40 @@ const app = {
         else window.location.href = url;
     },
 
-    scrollToSection(id) {
-        const el = document.getElementById(id);
-        if (el) {
-            const headerOffset = 130;
-            const elementPosition = el.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.scrollY - headerOffset;
-            
-            window.scrollTo({
-                top: offsetPosition,
-                behavior: "smooth"
-            });
+    bindNav() {
+        const nav = document.getElementById('categoryNav');
+        if (!nav) return;
 
-            // Update active pill state
-            document.querySelectorAll('.nav-pill').forEach(pill => pill.classList.remove('active'));
-            event.target.classList.add('active');
-        }
+        nav.querySelectorAll('.nav-pill').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget.dataset.target;
+                this.scrollToSection(target, e);
+            });
+        });
+    },
+
+    setActiveNav(id) {
+        document.querySelectorAll('.nav-pill').forEach(pill => {
+            pill.classList.toggle('active', pill.dataset.target === id);
+        });
+    },
+
+    scrollToSection(id, evt) {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        const header = document.querySelector('.sticky-header');
+        const headerOffset = header ? header.offsetHeight + 10 : 130;
+        const elementPosition = el.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.scrollY - headerOffset;
+        
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth"
+        });
+
+        this.setActiveNav(id);
+        if (evt?.currentTarget) evt.currentTarget.blur();
     },
 
     renderHero() {
@@ -59,6 +79,7 @@ const app = {
             card.dataset.title = article.title.toLowerCase();
             card.dataset.auth = article.author.toLowerCase();
             card.dataset.cat = article.category;
+            card.dataset.excerpt = article.excerpt.toLowerCase();
             card.onclick = () => this.handleNav(article.link);
 
             card.innerHTML = `
@@ -96,6 +117,8 @@ const app = {
                 card.className = 'std-card data-card';
                 card.dataset.title = article.title.toLowerCase();
                 card.dataset.auth = article.author.toLowerCase();
+                card.dataset.cat = article.category;
+                card.dataset.excerpt = article.excerpt.toLowerCase();
                 card.onclick = () => this.handleNav(article.link);
 
                 card.innerHTML = `
@@ -130,13 +153,18 @@ const app = {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('.data-card');
+            const noResults = document.getElementById('noResults');
+            let visibleCount = 0;
             
             cards.forEach(card => {
                 const title = card.dataset.title;
                 const author = card.dataset.auth;
+                const excerpt = card.dataset.excerpt || '';
+                const cat = card.dataset.cat || '';
                 
-                if (title.includes(term) || author.includes(term)) {
+                if (title.includes(term) || author.includes(term) || excerpt.includes(term) || cat.includes(term)) {
                     card.classList.remove('hidden');
+                    visibleCount += 1;
                 } else {
                     card.classList.add('hidden');
                 }
@@ -147,7 +175,33 @@ const app = {
                 const visibleCards = section.querySelectorAll('.data-card:not(.hidden)');
                 section.style.display = visibleCards.length > 0 ? 'block' : 'none';
             });
+
+            if (noResults) {
+                noResults.classList.toggle('hidden', visibleCount !== 0);
+            }
         });
+    },
+
+    observeSections() {
+        const sections = document.querySelectorAll('.category-row, #recent');
+        if (!('IntersectionObserver' in window) || sections.length === 0) return;
+
+        const header = document.querySelector('.sticky-header');
+        const headerOffset = header ? header.offsetHeight + 10 : 140;
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.id;
+                    this.setActiveNav(id === 'recent' ? 'recent' : entry.target.dataset.cat);
+                }
+            });
+        }, {
+            rootMargin: `-${headerOffset}px 0px -60% 0px`,
+            threshold: 0.35
+        });
+
+        sections.forEach(section => observer.observe(section));
     }
 };
 

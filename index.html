@@ -7,7 +7,7 @@
     <meta name="description" content="Science, Policy, and Innovation from the Nation's Capital.">
     
     <!-- Preload Critical Assets -->
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/style.css">
     
     <!-- Apple PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,12 +26,12 @@
             
             <!-- Category Navigation -->
             <nav class="category-nav" id="categoryNav">
-                <button class="nav-pill active" onclick="app.scrollToSection('recent')">Recent</button>
-                <button class="nav-pill" onclick="app.scrollToSection('neuro')">Neuroscience</button>
-                <button class="nav-pill" onclick="app.scrollToSection('biochemphys')">Bio/Chem/Phys</button>
-                <button class="nav-pill" onclick="app.scrollToSection('env')">Environment</button>
-                <button class="nav-pill" onclick="app.scrollToSection('public')">Public Health</button>
-                <button class="nav-pill" onclick="app.scrollToSection('biotech')">Biotech & AI</button>
+                <button class="nav-pill active" type="button" data-target="recent">Recent</button>
+                <button class="nav-pill" type="button" data-target="neuro">Neuroscience</button>
+                <button class="nav-pill" type="button" data-target="biochemphys">Bio/Chem/Phys</button>
+                <button class="nav-pill" type="button" data-target="env">Environment</button>
+                <button class="nav-pill" type="button" data-target="public">Public Health</button>
+                <button class="nav-pill" type="button" data-target="biotech">Biotech & AI</button>
             </nav>
         </div>
     </header>
@@ -74,6 +74,8 @@
             <h2 class="category-title">Biotech & AI</h2>
             <div class="std-track" id="container-biotech"></div>
         </section>
+
+        <div id="noResults" class="no-results hidden">No articles match your search just yet.</div>
 
     </main>
 
