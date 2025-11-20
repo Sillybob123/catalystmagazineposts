@@ -73,7 +73,6 @@ const app = {
         const recentArticles = articles.slice(0, 6);
         
         recentArticles.forEach((article, index) => {
-            const loading = index === 0 ? 'eager' : 'lazy'; // Eager load first LCP image
             const card = document.createElement('div');
             card.className = 'hero-card data-card';
             card.dataset.title = article.title.toLowerCase();
@@ -84,7 +83,7 @@ const app = {
 
             card.innerHTML = `
                 <div class="hero-image-wrap">
-                    <img src="${article.image}" alt="${article.title}" class="hero-image" loading="${loading}" />
+                    <img src="${article.image}" alt="${article.title}" class="hero-image" loading="eager" />
                 </div>
                 <div class="hero-content">
                     <div>
@@ -123,7 +122,7 @@ const app = {
 
                 card.innerHTML = `
                     <div class="std-image-wrap">
-                        <img src="${article.image}" alt="${article.title}" class="std-image" loading="lazy" />
+                        <img src="${article.image}" alt="${article.title}" class="std-image" loading="eager" />
                     </div>
                     <div class="std-content">
                         <span class="tag std-cat">${this.getCategoryLabel(article.category)}</span>

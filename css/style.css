@@ -1,10 +1,12 @@
 /* --- RESET & CORE --- */
 :root {
     --bg-body: #ffffff;
+    --bg-pattern: radial-gradient(circle at 20% 20%, rgba(15, 94, 240, 0.06), transparent 25%), radial-gradient(circle at 80% 0%, rgba(115, 103, 240, 0.05), transparent 25%), radial-gradient(circle at 50% 70%, rgba(15, 23, 42, 0.04), transparent 32%);
     --text-primary: #0f172a;
     --text-secondary: #6b7280;
     --accent-blue: #0f5ef0;
-    --glass-bg: rgba(255, 255, 255, 0.9);
+    --accent-purple: #7c3aed;
+    --glass-bg: rgba(255, 255, 255, 0.92);
     --card-bg: #ffffff;
     --shadow-sm: 0 2px 12px rgba(15, 23, 42, 0.06);
     --shadow-md: 0 12px 36px rgba(15, 23, 42, 0.08);
@@ -19,7 +21,9 @@
 
 body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: var(--bg-body);
+    background: var(--bg-body);
+    background-image: var(--bg-pattern);
+    background-attachment: fixed;
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     padding-bottom: 60px;
@@ -123,17 +127,18 @@ body {
     border: none;
     white-space: nowrap;
     padding: 8px 16px;
-    border-radius: 20px;
+    border-radius: 999px;
     font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
-    background: rgba(0,0,0,0.04);
+    background: linear-gradient(135deg, rgba(15,94,240,0.08), rgba(124,58,237,0.08));
+    border: 1px solid rgba(15,94,240,0.15);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.nav-pill:hover { background: rgba(0,0,0,0.08); color: var(--text-primary); }
-.nav-pill.active { background: var(--text-primary); color: #fff; }
+.nav-pill:hover { background: rgba(15,94,240,0.12); color: var(--text-primary); box-shadow: 0 12px 30px rgba(15,94,240,0.1); }
+.nav-pill.active { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); color: #fff; box-shadow: 0 12px 30px rgba(15,94,240,0.25); }
 
 /* --- HERO SECTION --- */
 .hero-section {
@@ -144,12 +149,24 @@ body {
 .section-header {
     padding: 0 4px;
     margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .hero-title {
     font-size: clamp(26px, 5vw, 36px);
     font-weight: 800;
     letter-spacing: -0.02em;
+}
+
+.section-header::after {
+    content: "";
+    height: 3px;
+    flex: 1;
+    min-width: 120px;
+    background: linear-gradient(90deg, rgba(15,94,240,0.35), rgba(124,58,237,0.1));
+    border-radius: 999px;
 }
 
 .hero-track {
@@ -180,6 +197,14 @@ body {
     z-index: 5;
 }
 
+.hero-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(15,94,240,0.12), transparent 45%);
+    pointer-events: none;
+}
+
 .hero-image-wrap {
     width: 100%;
     overflow: hidden;
@@ -207,7 +232,7 @@ body {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     margin-bottom: 8px;
 }
 
@@ -248,10 +273,11 @@ body {
 
 .category-title {
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 750;
     padding: 0 4px;
     margin-bottom: 15px;
     letter-spacing: -0.01em;
+    text-transform: uppercase;
 }
 
 .std-track {
@@ -267,16 +293,28 @@ body {
     border-radius: var(--radius-md);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    border: 1px solid rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.06);
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease;
     cursor: pointer;
+    position: relative;
+}
+
+.std-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, rgba(15,94,240,0.7), rgba(124,58,237,0.6));
 }
 
 .std-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-md);
+    border-color: rgba(15,94,240,0.2);
 }
 
 .std-image-wrap {
