@@ -2,6 +2,11 @@ const app = {
     articles: [],
 
     async init() {
+        // Flag embed mode so CSS can hide inner scrollbars when inside an iframe
+        if (window.parent !== window) {
+            document.documentElement.classList.add('is-embed');
+        }
+
         // Make sure embed scaffolding (height + scroll passthrough) is live even if data fetch fails
         this.enableScrollPassthrough();
         this.syncEmbedHeight();
@@ -554,11 +559,11 @@ const app = {
         const root = document.documentElement;
         const body = document.body;
         if (root) {
-            root.style.overflow = 'visible';
+            root.style.overflow = 'hidden';
             root.style.overscrollBehavior = 'none';
         }
         if (body) {
-            body.style.overflow = 'visible';
+            body.style.overflow = 'hidden';
             body.style.overscrollBehavior = 'none';
         }
 
