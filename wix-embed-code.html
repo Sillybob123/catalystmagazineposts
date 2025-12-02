@@ -71,9 +71,10 @@
         // Auto-resize iframe based on content
         window.addEventListener('message', function(event) {
             const iframe = document.getElementById('magazine-embed');
+            const data = event.data || {};
 
-            if (event.data && (event.data.type === 'setHeight' || event.data.type === 'embed-size')) {
-                const height = event.data.height;
+            if (data && (data.type === 'setHeight' || data.type === 'embed-size')) {
+                const height = data.height;
                 if (height && iframe) {
                     iframe.style.height = height + 'px';
                     iframe.style.minHeight = height + 'px';
@@ -81,8 +82,16 @@
             }
 
             // Forward scroll events to parent
-            if (event.data && event.data.type === 'scroll') {
-                window.parent.postMessage(event.data, '*');
+            if (data && data.type === 'scroll') {
+                window.parent.postMessage(data, '*');
+            }
+
+            // Keep scroll passthrough handshake alive (used by the embed to know when to preventDefault)
+            if (data && data.type === 'scroll-bridge-ping') {
+                window.parent.postMessage(data, '*');
+            }
+            if (data && data.type === 'scroll-bridge-ack' && iframe?.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'scroll-bridge-ack' }, '*');
             }
         }, false);
 

@@ -14,27 +14,26 @@
  */
 
 $w.onReady(function () {
-    // Listen for messages from the embedded iframe
-    if (typeof window !== 'undefined') {
-        window.addEventListener('message', function(event) {
-            // Handle scroll events from iframe
-            if (event.data && event.data.type === 'scroll') {
-                const deltaY = event.data.deltaY || 0;
-                const deltaX = event.data.deltaX || 0;
+    const handleMessage = (data, sourceComponent) => {
+        if (!data) return;
 
-                // Scroll the parent page
-                window.scrollBy({
-                    top: deltaY,
-                    left: deltaX,
-                    behavior: 'auto' // Use 'auto' for immediate response, 'smooth' for smooth scrolling
-                });
-            }
+        if (data.type === 'scroll') {
+            const deltaY = Number(data.deltaY) || 0;
+            const deltaX = Number(data.deltaX) || 0;
 
-            // Handle height updates from iframe (for proper sizing)
-            if (event.data && (event.data.type === 'setHeight' || event.data.type === 'embed-size')) {
-                const height = event.data.height;
-                if (height && height > 0) {
-                    // Find the iframe element
+            window.scrollBy({
+                top: deltaY,
+                left: deltaX,
+                behavior: 'auto' // Use 'auto' for immediate response, 'smooth' for smooth scrolling
+            });
+        }
+
+        if (data.type === 'setHeight' || data.type === 'embed-size') {
+            const height = Number(data.height);
+            if (height && height > 0) {
+                if (sourceComponent && typeof sourceComponent.height === 'number') {
+                    sourceComponent.height = height;
+                } else {
                     const iframe = document.querySelector('iframe[src*="catalystmagazineposts"]') ||
                                   document.querySelector('iframe.html-embed-iframe');
 
@@ -43,6 +42,40 @@ $w.onReady(function () {
                     }
                 }
             }
+        }
+
+        if (data.type === 'scroll-bridge-ping' && sourceComponent && typeof sourceComponent.postMessage === 'function') {
+            sourceComponent.postMessage({ type: 'scroll-bridge-ack' });
+        }
+    };
+
+    const wireHtmlComponent = (component) => {
+        if (!component || typeof component.onMessage !== 'function') return;
+        component.onMessage((event) => handleMessage(event.data, component));
+
+        // Tell the embedded frame we're ready to handle scroll passthrough
+        if (typeof component.postMessage === 'function') {
+            component.postMessage({ type: 'scroll-bridge-ack' });
+        }
+    };
+
+    // Attach to any HTML embeds on the page
+    const htmlComponents = $w('HtmlComponent');
+    if (Array.isArray(htmlComponents)) {
+        htmlComponents.forEach(wireHtmlComponent);
+    } else if (htmlComponents) {
+        // $w('HtmlComponent') may return a single component when only one exists
+        if (typeof htmlComponents.forEach === 'function') {
+            htmlComponents.forEach(wireHtmlComponent);
+        } else {
+            wireHtmlComponent(htmlComponents);
+        }
+    }
+
+    // Fallback listener (covers preview mode / non-Wix shells)
+    if (typeof window !== 'undefined') {
+        window.addEventListener('message', function(event) {
+            handleMessage(event.data, null);
         }, false);
     }
 });

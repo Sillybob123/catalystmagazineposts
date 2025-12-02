@@ -2,6 +2,10 @@ const app = {
     articles: [],
 
     async init() {
+        // Make sure embed scaffolding (height + scroll passthrough) is live even if data fetch fails
+        this.enableScrollPassthrough();
+        this.syncEmbedHeight();
+
         await this.loadArticles();
         if (this.articles.length === 0) return;
 
@@ -12,8 +16,6 @@ const app = {
         this.initSearch();
         this.bindNav();
         this.observeSections();
-        this.syncEmbedHeight();
-        this.enableScrollPassthrough();
     },
 
     async loadArticles() {
@@ -549,20 +551,66 @@ const app = {
         if (window.parent === window) return;
 
         // Allow normal overflow for better scroll behavior
-        document.documentElement.style.overflow = 'visible';
-        document.body.style.overflow = 'visible';
+        const root = document.documentElement;
+        const body = document.body;
+        if (root) {
+            root.style.overflow = 'visible';
+            root.style.overscrollBehavior = 'none';
+        }
+        if (body) {
+            body.style.overflow = 'visible';
+            body.style.overscrollBehavior = 'none';
+        }
+
+        let bridgeReady = false;
+
+        const postToAncestors = (payload = {}) => {
+            let sent = false;
+            const targets = new Set();
+
+            if (window.parent && window.parent !== window) targets.add(window.parent);
+            if (window.top && window.top !== window && window.top !== window.parent) targets.add(window.top);
+
+            targets.forEach(target => {
+                try {
+                    target.postMessage(payload, '*');
+                    sent = true;
+                } catch (_) { /* noop */ }
+            });
+
+            return sent;
+        };
+
+        // Lightweight handshake so we only suppress default scrolling once the parent can respond
+        const requestBridge = () => postToAncestors({ type: 'scroll-bridge-ping' });
+        requestBridge();
+        const pingInterval = setInterval(() => {
+            if (bridgeReady) {
+                clearInterval(pingInterval);
+                return;
+            }
+            requestBridge();
+        }, 800);
+
+        window.addEventListener('message', (event) => {
+            if (event?.data?.type === 'scroll-bridge-ack') {
+                bridgeReady = true;
+            }
+        });
 
         const forward = (deltaY = 0, deltaX = 0) => {
-            try {
-                window.parent.postMessage({ type: 'scroll', deltaY, deltaX }, '*');
-            } catch (_) { /* noop */ }
+            postToAncestors({ type: 'scroll', deltaY, deltaX });
+            return bridgeReady;
         };
 
         // Forward wheel events to parent
-        window.addEventListener('wheel', (e) => {
-            forward(e.deltaY, e.deltaX);
-            e.preventDefault();
-        }, { passive: false });
+        const wheelHandler = (e) => {
+            if (forward(e.deltaY, e.deltaX)) {
+                e.preventDefault();
+            }
+        };
+        window.addEventListener('wheel', wheelHandler, { passive: false });
+        document.addEventListener('wheel', wheelHandler, { passive: false });
 
         // Forward touch events to parent for mobile
         let lastTouchY = null;
@@ -581,12 +629,13 @@ const app = {
                 if (lastTouchY !== null) {
                     const deltaY = lastTouchY - currentY;
                     const deltaX = lastTouchX - currentX;
-                    forward(deltaY, deltaX);
+                    if (forward(deltaY, deltaX)) {
+                        e.preventDefault();
+                    }
                 }
                 lastTouchY = currentY;
                 lastTouchX = currentX;
             }
-            e.preventDefault();
         }, { passive: false });
 
         window.addEventListener('touchend', () => {
