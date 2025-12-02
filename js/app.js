@@ -1,5 +1,6 @@
 const app = {
     articles: [],
+    editorials: [],
 
     async init() {
         // Flag embed mode so CSS can hide inner scrollbars when inside an iframe
@@ -12,12 +13,18 @@ const app = {
         this.syncEmbedHeight();
 
         await this.loadArticles();
-        if (this.articles.length === 0) return;
+        await this.loadEditorials();
+
+        if (this.articles.length === 0 && this.editorials.length === 0) return;
 
         this.sortArticles();
-        this.preloadTopImages();
-        this.renderHero();
-        this.renderCategories();
+        this.sortArticles(this.editorials);
+        if (this.articles.length) {
+            this.preloadTopImages();
+            this.renderHero();
+            this.renderCategories();
+        }
+        this.renderEditorials();
         this.initSearch();
         this.bindNav();
         this.observeSections();
@@ -41,6 +48,21 @@ const app = {
 
         if (Array.isArray(window.articles)) {
             this.articles = [...window.articles];
+        }
+    },
+
+    async loadEditorials() {
+        try {
+            const res = await fetch('Editorials.csv', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Failed to fetch Editorials.csv');
+            const text = await res.text();
+            const rows = this.parseCSV(text);
+            const mapped = rows.map(r => this.mapRowToEditorial(r)).filter(Boolean);
+            if (mapped.length) {
+                this.editorials = mapped;
+            }
+        } catch (err) {
+            console.warn('Editorial CSV load failed', err);
         }
     },
 
@@ -126,6 +148,27 @@ const app = {
         };
     },
 
+    mapRowToEditorial(row = {}) {
+        const base = this.mapRowToArticle(row);
+        if (!base) return null;
+
+        const readTimeRaw = row['Time To Read'] || row['Read Time'] || '';
+        const readTime = readTimeRaw ? `${readTimeRaw} min read` : '';
+        const tone = row['Main Category'] || row.Category || 'Editorial';
+        const publishedISO = row['Published Date'] || base.published || '';
+        const { author: authorFromName, date: dateFromName } = this.extractNameDate(row['Name, Date']);
+
+        return {
+            ...base,
+            category: 'editorial',
+            date: dateFromName || base.date,
+            author: authorFromName || base.author,
+            published: publishedISO,
+            readTime,
+            tone
+        };
+    },
+
     normalizeWixImage(url = '') {
         if (!url) return url;
         if (url.startsWith('wix:image://')) {
@@ -138,6 +181,7 @@ const app = {
 
     normalizeCategory(raw = '') {
         const val = raw.toLowerCase();
+        if (val.includes('editorial')) return 'editorial';
         if (val.includes('neuro') || val.includes('brain') || val === 'medicine') return 'neuro';
         if (val.includes('public')) return 'public';
         if (val.includes('env')) return 'env';
@@ -172,9 +216,9 @@ const app = {
         return formatter.format(date);
     },
 
-    sortArticles() {
+    sortArticles(collection = this.articles) {
         // Sort by date (Newest first)
-        this.articles.sort((a, b) => {
+        collection.sort((a, b) => {
             const bDate = new Date(b.published || b.date || 0).getTime();
             const aDate = new Date(a.published || a.date || 0).getTime();
             return bDate - aDate;
@@ -187,7 +231,8 @@ const app = {
             'biochemphys': 'Bio / Chem / Phys',
             'env': 'Environment',
             'public': 'Public Health',
-            'biotech': 'Biotech & AI'
+            'biotech': 'Biotech & AI',
+            'editorial': 'Editorial'
         };
         return labels[cat] || 'Article';
     },
@@ -378,6 +423,81 @@ const app = {
         });
     },
 
+    renderEditorials() {
+        const section = document.getElementById('editorials');
+        const container = document.getElementById('editorials-container');
+        if (!section || !container) return;
+
+        container.innerHTML = '';
+
+        if (!this.editorials.length) {
+            section.style.display = 'none';
+            return;
+        }
+
+        const picks = this.editorials.slice(0, 9);
+        picks.forEach((article, idx) => {
+            const card = document.createElement('article');
+            card.className = 'editorial-card data-card';
+            card.dataset.title = article.title.toLowerCase();
+            card.dataset.auth = article.author.toLowerCase();
+            card.dataset.cat = 'editorial';
+            card.dataset.excerpt = (article.excerpt || '').toLowerCase();
+            card.onclick = () => this.handleNav(article.link);
+
+            const visual = this.buildResponsiveSources(article.image, {
+                widths: [420, 560, 720],
+                aspectRatio: 4 / 3,
+                quality: 80
+            });
+            const loading = idx < 2 ? 'eager' : 'lazy';
+
+            card.innerHTML = `
+                <div class="editorial-image-wrap">
+                    <picture>
+                        <source type="image/avif" srcset="${visual.avif.srcset}" sizes="(max-width: 900px) 100vw, 320px" />
+                        <source type="image/webp" srcset="${visual.webp.srcset}" sizes="(max-width: 900px) 100vw, 320px" />
+                        <img
+                            src="${visual.fallback.src}"
+                            srcset="${visual.fallback.srcset}"
+                            sizes="(max-width: 900px) 100vw, 320px"
+                            width="${visual.fallback.width}"
+                            height="${visual.fallback.height}"
+                            alt="${article.title}"
+                            class="editorial-image"
+                            loading="${loading}"
+                            fetchpriority="${idx < 2 ? 'high' : 'low'}"
+                            decoding="async" />
+                    </picture>
+                </div>
+                <div class="editorial-body">
+                    <div class="editorial-kicker">
+                        <span class="editorial-dot"></span>
+                        ${article.tone || 'Editorial'}
+                    </div>
+                    <h3 class="editorial-title">${article.title}</h3>
+                    <p class="editorial-excerpt">${article.excerpt}</p>
+                    <div class="editorial-meta">
+                        <span class="editorial-author">${article.author}</span>
+                        <span class="editorial-divider">•</span>
+                        <span>${article.date}</span>
+                        ${article.readTime ? `<span class="editorial-divider">•</span><span>${article.readTime}</span>` : ''}
+                        <span class="editorial-read">Read</span>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(card);
+
+            const img = card.querySelector('.editorial-image');
+            if (img.complete) {
+                img.classList.add('loaded');
+            } else {
+                img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+            }
+        });
+    },
+
     initSearch() {
         const searchInput = document.getElementById('searchInput');
         if (!searchInput) return;
@@ -403,7 +523,7 @@ const app = {
             });
 
             // Hide/Show rows based on results
-            document.querySelectorAll('.category-row, .hero-section').forEach(section => {
+            document.querySelectorAll('.category-row, .hero-section, .editorial-section').forEach(section => {
                 const visibleCards = section.querySelectorAll('.data-card:not(.hidden)');
                 section.style.display = visibleCards.length > 0 ? 'block' : 'none';
             });
@@ -555,19 +675,24 @@ const app = {
         // Forward scroll gestures to the parent page so the iframe never traps scroll
         if (window.parent === window) return;
 
-        // Allow normal overflow for better scroll behavior
+        // Safari-compatible overflow hiding
         const root = document.documentElement;
         const body = document.body;
+
+        // Force hide scrollbars in both Chrome and Safari
         if (root) {
             root.style.overflow = 'hidden';
             root.style.overscrollBehavior = 'none';
+            root.style.webkitOverflowScrolling = 'auto';
         }
         if (body) {
             body.style.overflow = 'hidden';
             body.style.overscrollBehavior = 'none';
+            body.style.webkitOverflowScrolling = 'auto';
         }
 
         let bridgeReady = false;
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
         const postToAncestors = (payload = {}) => {
             let sent = false;
@@ -586,7 +711,7 @@ const app = {
             return sent;
         };
 
-        // Lightweight handshake so we only suppress default scrolling once the parent can respond
+        // Handshake with parent
         const requestBridge = () => postToAncestors({ type: 'scroll-bridge-ping' });
         requestBridge();
         const pingInterval = setInterval(() => {
@@ -608,18 +733,30 @@ const app = {
             return bridgeReady;
         };
 
-        // Forward wheel events to parent
+        // Safari-compatible wheel event handling
         const wheelHandler = (e) => {
-            if (forward(e.deltaY, e.deltaX)) {
+            const shouldPrevent = forward(e.deltaY, e.deltaX);
+            if (shouldPrevent) {
                 e.preventDefault();
+                e.stopPropagation();
+                return false;
             }
         };
-        window.addEventListener('wheel', wheelHandler, { passive: false });
-        document.addEventListener('wheel', wheelHandler, { passive: false });
 
-        // Forward touch events to parent for mobile
+        // Add wheel listeners with explicit non-passive for Safari
+        window.addEventListener('wheel', wheelHandler, { passive: false, capture: true });
+        document.addEventListener('wheel', wheelHandler, { passive: false, capture: true });
+
+        // Safari-specific mousewheel event (legacy)
+        if (isSafari) {
+            window.addEventListener('mousewheel', wheelHandler, { passive: false, capture: true });
+            document.addEventListener('mousewheel', wheelHandler, { passive: false, capture: true });
+        }
+
+        // Touch events for mobile Safari
         let lastTouchY = null;
         let lastTouchX = null;
+
         window.addEventListener('touchstart', (e) => {
             if (e.touches && e.touches[0]) {
                 lastTouchY = e.touches[0].clientY;
@@ -634,8 +771,10 @@ const app = {
                 if (lastTouchY !== null) {
                     const deltaY = lastTouchY - currentY;
                     const deltaX = lastTouchX - currentX;
-                    if (forward(deltaY, deltaX)) {
+                    const shouldPrevent = forward(deltaY, deltaX);
+                    if (shouldPrevent) {
                         e.preventDefault();
+                        e.stopPropagation();
                     }
                 }
                 lastTouchY = currentY;
