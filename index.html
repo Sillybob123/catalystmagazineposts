@@ -9,6 +9,10 @@
     <!-- Critical Performance Optimizations -->
     <link rel="preconnect" href="https://static.wixstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://static.wixstatic.com">
+    <link rel="preconnect" href="https://static.wixstatic.com/media" crossorigin>
+
+    <!-- Preload first hero image for instant display -->
+    <link rel="preload" as="image" href="https://static.wixstatic.com/media/11b1c4_790a12e131b64175aa547cdd45d902c1~mv2.jpg/v1/fill/w_720,h_405,al_c,q_85,usm_0.66_1.00_0.01/optimized.webp" fetchpriority="high">
 
     <!-- Preload Critical Assets -->
     <link rel="stylesheet" href="css/style.css">
@@ -24,7 +28,10 @@
         <div class="header-content">
             <!-- Search Bar -->
             <div class="search-wrapper">
-                <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <svg class="search-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Search">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
                 <input type="text" class="search-input" id="searchInput" placeholder="Search articles, authors, or topics..." autocomplete="off">
             </div>
             

@@ -7,6 +7,7 @@ const app = {
         this.initSearch();
         this.bindNav();
         this.observeSections();
+        this.syncEmbedHeight();
     },
 
     sortArticles() {
@@ -82,14 +83,28 @@ const app = {
             card.dataset.excerpt = article.excerpt.toLowerCase();
             card.onclick = () => this.handleNav(article.link);
 
-            // Optimize Wix image URL for faster loading
-            const optimizedImage = this.optimizeWixImage(article.image, 700);
-            const loading = index < 3 ? 'eager' : 'lazy';
-            const fetchpriority = index < 2 ? 'high' : 'low';
+            // Optimize Wix image URL for faster loading (WebP + resized variants)
+            const heroImage = this.buildSrcSet(article.image, {
+                widths: [520, 760, 1100],
+                aspectRatio: 16 / 9,
+                quality: 85
+            });
+            const loading = index < 4 ? 'eager' : 'lazy';
+            const fetchpriority = index < 3 ? 'high' : 'low';
 
             card.innerHTML = `
                 <div class="hero-image-wrap">
-                    <img src="${optimizedImage}" alt="${article.title}" class="hero-image" loading="${loading}" fetchpriority="${fetchpriority}" decoding="async" />
+                    <img 
+                        src="${heroImage.src}" 
+                        srcset="${heroImage.srcset}" 
+                        sizes="(max-width: 640px) 90vw, (max-width: 1024px) 60vw, 360px"
+                        width="${heroImage.width}" 
+                        height="${heroImage.height}"
+                        alt="${article.title}" 
+                        class="hero-image" 
+                        loading="${loading}" 
+                        fetchpriority="${fetchpriority}" 
+                        decoding="async" />
                 </div>
                 <div class="hero-content">
                     <div>
@@ -137,12 +152,25 @@ const app = {
                 card.dataset.excerpt = article.excerpt.toLowerCase();
                 card.onclick = () => this.handleNav(article.link);
 
-                // Optimize Wix image URL for faster loading
-                const optimizedImage = this.optimizeWixImage(article.image, 500);
+                // Optimize Wix image URL for faster loading (WebP + resized variants)
+                const cardImage = this.buildSrcSet(article.image, {
+                    widths: [360, 520, 720],
+                    aspectRatio: 16 / 10,
+                    quality: 85
+                });
 
                 card.innerHTML = `
                     <div class="std-image-wrap">
-                        <img src="${optimizedImage}" alt="${article.title}" class="std-image" loading="lazy" decoding="async" />
+                        <img 
+                            src="${cardImage.src}" 
+                            srcset="${cardImage.srcset}"
+                            sizes="(max-width: 640px) 88vw, (max-width: 1024px) 44vw, 320px"
+                            width="${cardImage.width}" 
+                            height="${cardImage.height}"
+                            alt="${article.title}" 
+                            class="std-image" 
+                            loading="lazy" 
+                            decoding="async" />
                     </div>
                     <div class="std-content">
                         <span class="tag std-cat">${this.getCategoryLabel(article.category)}</span>
@@ -254,23 +282,43 @@ const app = {
         });
     },
 
-    optimizeWixImage(url, width = 800) {
-        // Wix image optimization: add width parameter for resized, optimized images
-        if (!url || !url.includes('wixstatic.com')) return url;
+    optimizeWixImage(url, { width = 800, aspectRatio = 16 / 9, quality = 85, format = 'webp', mode = 'fill' } = {}) {
+        // Wix media supports dynamic transforms via the /v1 path. This returns a resized + compressed URL.
+        if (!url || !url.includes('wixstatic.com/media')) return url;
 
-        try {
-            const urlObj = new URL(url);
-            // Add width parameter for automatic Wix optimization
-            urlObj.searchParams.set('w', width);
-            return urlObj.toString();
-        } catch (e) {
-            return url;
-        }
+        const match = url.match(/https?:\/\/static\.wixstatic\.com\/media\/([^\/]+)/i);
+        if (!match || !width) return url;
+
+        const mediaId = match[1];
+        const targetWidth = Math.round(width);
+        const targetHeight = Math.max(1, Math.round(targetWidth / aspectRatio));
+        const clampedQuality = Math.min(95, Math.max(70, Math.round(quality)));
+
+        // Use Wix's optimized CDN path with WebP for instant loading
+        return `https://static.wixstatic.com/media/${mediaId}/v1/${mode}/w_${targetWidth},h_${targetHeight},al_c,q_${clampedQuality},usm_0.66_1.00_0.01/optimized.${format}`;
+    },
+
+    buildSrcSet(url, { widths = [400, 700, 1100], aspectRatio = 16 / 9, quality = 85, format = 'webp' } = {}) {
+        const cleanWidths = widths.filter(Boolean).sort((a, b) => a - b);
+        const primaryWidth = cleanWidths[Math.min(1, cleanWidths.length - 1)] || widths[0] || 800;
+        const primaryHeight = Math.round(primaryWidth / aspectRatio);
+
+        const srcset = cleanWidths.map(w => {
+            const optimized = this.optimizeWixImage(url, { width: w, aspectRatio, quality, format });
+            return `${optimized} ${Math.round(w)}w`;
+        }).join(', ');
+
+        return {
+            src: this.optimizeWixImage(url, { width: primaryWidth, aspectRatio, quality, format }),
+            srcset,
+            width: primaryWidth,
+            height: primaryHeight
+        };
     },
 
     preloadTopImages() {
-        // Only preload the first 3 hero images with optimized size
-        const top = articles.slice(0, 3).map(a => this.optimizeWixImage(a.image, 700));
+        // Preload first 4 hero images with optimized Wix CDN URLs for instant loading
+        const top = articles.slice(0, 4).map(a => this.buildSrcSet(a.image, { widths: [720, 980], aspectRatio: 16 / 9, quality: 85 }).src);
         const head = document.head;
 
         top.forEach((src, index) => {
@@ -278,9 +326,62 @@ const app = {
             link.rel = 'preload';
             link.as = 'image';
             link.href = src;
-            link.fetchpriority = index === 0 ? 'high' : 'low';
+            link.fetchpriority = index < 2 ? 'high' : 'low';
             head.appendChild(link);
         });
+    },
+
+    syncEmbedHeight() {
+        // If this is running inside an iframe (e.g., Wix HTML embed), ask the parent to size the frame
+        if (window.parent === window) return;
+
+        const postHeight = () => {
+            const height = Math.ceil(document.documentElement.scrollHeight);
+            try {
+                const payload = { type: 'setHeight', height };
+                window.parent.postMessage(payload, '*');
+                // Secondary payload for platforms that expect a different key
+                window.parent.postMessage({ type: 'embed-size', height }, '*');
+            } catch (_) { /* noop */ }
+        };
+
+        // Fix scrolling: Pass wheel events to parent so page scrolls naturally
+        let isScrollingContent = false;
+
+        window.addEventListener('wheel', (e) => {
+            // Check if user is scrolling an overflowing container
+            let target = e.target;
+            while (target && target !== document.body) {
+                const isScrollable = target.scrollHeight > target.clientHeight ||
+                                    target.scrollWidth > target.clientWidth;
+                if (isScrollable && (target.classList.contains('category-nav') ||
+                    target.classList.contains('hero-track'))) {
+                    isScrollingContent = true;
+                    return; // Let the container handle scroll
+                }
+                target = target.parentElement;
+            }
+
+            // Forward scroll to parent frame for page-level scrolling
+            if (!isScrollingContent) {
+                try {
+                    window.parent.postMessage({
+                        type: 'scroll',
+                        deltaY: e.deltaY,
+                        deltaX: e.deltaX
+                    }, '*');
+                } catch (_) { /* noop */ }
+            }
+            isScrollingContent = false;
+        }, { passive: true });
+
+        // Initial + on resize/content changes
+        window.addEventListener('load', postHeight);
+        window.addEventListener('resize', postHeight);
+        if ('ResizeObserver' in window) {
+            const ro = new ResizeObserver(() => requestAnimationFrame(postHeight));
+            ro.observe(document.body);
+        }
     }
 };
 

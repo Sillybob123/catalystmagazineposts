@@ -1,0 +1,118 @@
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  WIX HTML EMBED CODE - Copy & Paste This Into Your Wix HTML Element
+  ═══════════════════════════════════════════════════════════════════════
+
+  SETUP INSTRUCTIONS:
+
+  1. In Wix Editor, add an HTML iframe element:
+     - Click "+ Add" → "Embed" → "Custom Embeds" → "HTML iframe"
+
+  2. Paste this ENTIRE code block into the "Code" section
+
+  3. Adjust the iframe URL to point to your hosted index.html file
+
+  4. For scroll-through functionality, ALSO add wix-integration.js to your
+     page code (see wix-integration.js file for instructions)
+
+  5. Publish your site!
+
+  ═══════════════════════════════════════════════════════════════════════
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: transparent;
+        }
+
+        iframe {
+            width: 100%;
+            min-height: 100vh;
+            border: none;
+            display: block;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      IMPORTANT: Replace "YOUR-HOSTED-URL" with the actual URL where you
+      uploaded your index.html file. Examples:
+
+      - GitHub Pages: https://yourusername.github.io/catalystmagazineposts/
+      - Netlify: https://yoursite.netlify.app/
+      - Custom Domain: https://yourdomain.com/magazine/
+      - Wix File Manager: https://yoursite.wixsite.com/files/index.html
+    -->
+    <iframe
+        src="YOUR-HOSTED-URL/index.html"
+        id="magazine-embed"
+        title="Catalyst Magazine"
+        loading="eager"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms"
+    ></iframe>
+
+    <script>
+        // Auto-resize iframe based on content
+        window.addEventListener('message', function(event) {
+            const iframe = document.getElementById('magazine-embed');
+
+            if (event.data && (event.data.type === 'setHeight' || event.data.type === 'embed-size')) {
+                const height = event.data.height;
+                if (height && iframe) {
+                    iframe.style.height = height + 'px';
+                    iframe.style.minHeight = height + 'px';
+                }
+            }
+
+            // Forward scroll events to parent
+            if (event.data && event.data.type === 'scroll') {
+                window.parent.postMessage(event.data, '*');
+            }
+        }, false);
+
+        // Ensure iframe loads properly
+        document.addEventListener('DOMContentLoaded', function() {
+            const iframe = document.getElementById('magazine-embed');
+
+            // Set initial minimum height
+            iframe.style.minHeight = '1000px';
+
+            // Listen for load event
+            iframe.addEventListener('load', function() {
+                console.log('Catalyst Magazine loaded successfully');
+            });
+        });
+    </script>
+</body>
+</html>
+
+<!--
+  ═══════════════════════════════════════════════════════════════════════
+  ALTERNATIVE: Direct Iframe Embed (Simpler, but less control)
+  ═══════════════════════════════════════════════════════════════════════
+
+  If you just want a simple iframe without the wrapper:
+
+  <iframe
+      src="YOUR-HOSTED-URL/index.html"
+      style="width: 100%; min-height: 1000px; border: none;"
+      title="Catalyst Magazine"
+      loading="eager"
+  ></iframe>
+
+  ═══════════════════════════════════════════════════════════════════════
+-->
