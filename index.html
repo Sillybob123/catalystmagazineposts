@@ -36,15 +36,20 @@
     <!-- STICKY HEADER (Search & Nav) -->
     <header class="sticky-header">
         <div class="header-content">
-            <!-- Search Bar -->
-            <div class="search-wrapper">
-                <svg class="search-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Search">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input type="text" class="search-input" id="searchInput" placeholder="Search articles, authors, or topics..." autocomplete="off">
+            <!-- Search Bar & Brain Teaser Button -->
+            <div class="search-row">
+                <div class="search-wrapper">
+                    <svg class="search-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Search">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search articles, authors, or topics..." autocomplete="off">
+                </div>
+                <a class="nav-btn" href="https://catalyst-magazine.com/#brainteaser" target="_top">
+                    Brain Teaser
+                </a>
             </div>
-            
+
             <!-- Category Navigation -->
             <nav class="category-nav" id="categoryNav">
                 <button class="nav-pill active" type="button" data-target="recent">Recent</button>
