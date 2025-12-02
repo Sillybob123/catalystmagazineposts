@@ -448,9 +448,9 @@ const app = {
             const visual = this.buildResponsiveSources(article.image, {
                 widths: [420, 560, 720],
                 aspectRatio: 4 / 3,
-                quality: 80
+                quality: 85
             });
-            const loading = idx < 2 ? 'eager' : 'lazy';
+            const loading = idx < 6 ? 'eager' : 'lazy';
 
             card.innerHTML = `
                 <div class="editorial-image-wrap">
@@ -466,7 +466,7 @@ const app = {
                             alt="${article.title}"
                             class="editorial-image"
                             loading="${loading}"
-                            fetchpriority="${idx < 2 ? 'high' : 'low'}"
+                            fetchpriority="${idx < 3 ? 'high' : 'auto'}"
                             decoding="async" />
                     </picture>
                 </div>
@@ -481,7 +481,6 @@ const app = {
                         <span class="editorial-author">${article.author}</span>
                         <span class="editorial-divider">•</span>
                         <span>${article.date}</span>
-                        ${article.readTime ? `<span class="editorial-divider">•</span><span>${article.readTime}</span>` : ''}
                         <span class="editorial-read">Read</span>
                     </div>
                 </div>
@@ -679,20 +678,23 @@ const app = {
         const root = document.documentElement;
         const body = document.body;
 
-        // Force hide scrollbars in both Chrome and Safari
+        // Force hide scrollbars and disable scrolling in both Chrome and Safari
         if (root) {
             root.style.overflow = 'hidden';
             root.style.overscrollBehavior = 'none';
             root.style.webkitOverflowScrolling = 'auto';
+            root.style.touchAction = 'none'; // Critical for Safari
         }
         if (body) {
             body.style.overflow = 'hidden';
             body.style.overscrollBehavior = 'none';
             body.style.webkitOverflowScrolling = 'auto';
+            body.style.touchAction = 'none'; // Critical for Safari
         }
 
         let bridgeReady = false;
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
         const postToAncestors = (payload = {}) => {
             let sent = false;
@@ -711,8 +713,10 @@ const app = {
             return sent;
         };
 
-        // Handshake with parent
+        // Handshake with parent - more aggressive for Safari
         const requestBridge = () => postToAncestors({ type: 'scroll-bridge-ping' });
+
+        // Start handshake immediately and more frequently
         requestBridge();
         const pingInterval = setInterval(() => {
             if (bridgeReady) {
@@ -720,11 +724,12 @@ const app = {
                 return;
             }
             requestBridge();
-        }, 800);
+        }, 300); // Reduced from 800ms to 300ms for faster handshake
 
         window.addEventListener('message', (event) => {
             if (event?.data?.type === 'scroll-bridge-ack') {
                 bridgeReady = true;
+                clearInterval(pingInterval);
             }
         });
 
@@ -733,14 +738,13 @@ const app = {
             return bridgeReady;
         };
 
-        // Safari-compatible wheel event handling
+        // AGGRESSIVE: Always preventDefault, even if bridge isn't ready
+        // This prevents scroll trap while waiting for handshake
         const wheelHandler = (e) => {
-            const shouldPrevent = forward(e.deltaY, e.deltaX);
-            if (shouldPrevent) {
-                e.preventDefault();
-                e.stopPropagation();
-                return false;
-            }
+            e.preventDefault();
+            e.stopPropagation();
+            forward(e.deltaY, e.deltaX);
+            return false;
         };
 
         // Add wheel listeners with explicit non-passive for Safari
@@ -753,39 +757,107 @@ const app = {
             document.addEventListener('mousewheel', wheelHandler, { passive: false, capture: true });
         }
 
-        // Touch events for mobile Safari
+        // Touch events for mobile Safari - CRITICAL FIXES
         let lastTouchY = null;
         let lastTouchX = null;
+        let touchStartTime = 0;
 
-        window.addEventListener('touchstart', (e) => {
+        const touchStartHandler = (e) => {
             if (e.touches && e.touches[0]) {
                 lastTouchY = e.touches[0].clientY;
                 lastTouchX = e.touches[0].clientX;
+                touchStartTime = Date.now();
             }
-        }, { passive: true });
+        };
 
-        window.addEventListener('touchmove', (e) => {
+        const touchMoveHandler = (e) => {
+            // ALWAYS preventDefault for Safari - this is critical
+            e.preventDefault();
+            e.stopPropagation();
+
             if (e.touches && e.touches[0]) {
                 const currentY = e.touches[0].clientY;
                 const currentX = e.touches[0].clientX;
-                if (lastTouchY !== null) {
+
+                if (lastTouchY !== null && lastTouchX !== null) {
                     const deltaY = lastTouchY - currentY;
                     const deltaX = lastTouchX - currentX;
-                    const shouldPrevent = forward(deltaY, deltaX);
-                    if (shouldPrevent) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
+
+                    // Forward to parent
+                    forward(deltaY, deltaX);
                 }
+
                 lastTouchY = currentY;
                 lastTouchX = currentX;
             }
-        }, { passive: false });
 
-        window.addEventListener('touchend', () => {
+            return false;
+        };
+
+        const touchEndHandler = () => {
             lastTouchY = null;
             lastTouchX = null;
-        }, { passive: true });
+            touchStartTime = 0;
+        };
+
+        // Register touch events on multiple targets for Safari reliability
+        const touchOptions = { passive: false, capture: true };
+
+        window.addEventListener('touchstart', touchStartHandler, touchOptions);
+        document.addEventListener('touchstart', touchStartHandler, touchOptions);
+        if (body) body.addEventListener('touchstart', touchStartHandler, touchOptions);
+
+        window.addEventListener('touchmove', touchMoveHandler, touchOptions);
+        document.addEventListener('touchmove', touchMoveHandler, touchOptions);
+        if (body) body.addEventListener('touchmove', touchMoveHandler, touchOptions);
+
+        window.addEventListener('touchend', touchEndHandler, { passive: true, capture: true });
+        document.addEventListener('touchend', touchEndHandler, { passive: true, capture: true });
+        if (body) body.addEventListener('touchend', touchEndHandler, { passive: true, capture: true });
+
+        window.addEventListener('touchcancel', touchEndHandler, { passive: true, capture: true });
+
+        // Pointer Events (additional fallback for Safari)
+        if (window.PointerEvent) {
+            let lastPointerY = null;
+            let lastPointerX = null;
+
+            window.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'touch') {
+                    lastPointerY = e.clientY;
+                    lastPointerX = e.clientX;
+                }
+            }, { passive: true, capture: true });
+
+            window.addEventListener('pointermove', (e) => {
+                if (e.pointerType === 'touch') {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    if (lastPointerY !== null && lastPointerX !== null) {
+                        const deltaY = lastPointerY - e.clientY;
+                        const deltaX = lastPointerX - e.clientX;
+                        forward(deltaY, deltaX);
+                    }
+
+                    lastPointerY = e.clientY;
+                    lastPointerX = e.clientX;
+                    return false;
+                }
+            }, { passive: false, capture: true });
+
+            window.addEventListener('pointerup', () => {
+                lastPointerY = null;
+                lastPointerX = null;
+            }, { passive: true, capture: true });
+        }
+
+        // iOS Safari specific: Prevent elastic scrolling
+        if (isIOS) {
+            document.addEventListener('touchforcechange', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+        }
     }
 };
 

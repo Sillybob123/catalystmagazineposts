@@ -20,6 +20,32 @@
     <!-- Apple PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- CRITICAL: Early Safari scroll passthrough setup -->
+    <script>
+        // Run IMMEDIATELY before any other scripts to prevent Safari scroll capture
+        (function() {
+            if (window.parent === window) return; // Not in iframe
+
+            // Immediately apply CSS fixes for Safari
+            const style = document.createElement('style');
+            style.textContent = `
+                html, body {
+                    touch-action: none !important;
+                    overflow: hidden !important;
+                    -webkit-overflow-scrolling: auto !important;
+                    overscroll-behavior: none !important;
+                }
+                html *, body * {
+                    touch-action: none !important;
+                }
+            `;
+            (document.head || document.documentElement).appendChild(style);
+
+            // Flag as embed immediately
+            document.documentElement.classList.add('is-embed');
+        })();
+    </script>
 </head>
 <body>
 

@@ -14,6 +14,34 @@
  */
 
 $w.onReady(function () {
+    // Safari optimization: Use RAF for smoother, more reliable scrolling
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    let scrollPending = false;
+    let accumulatedDeltaY = 0;
+    let accumulatedDeltaX = 0;
+
+    const executeScroll = () => {
+        if (accumulatedDeltaY !== 0 || accumulatedDeltaX !== 0) {
+            // Safari performs better with direct scroll position manipulation
+            if (isSafari) {
+                window.scrollTo({
+                    top: window.scrollY + accumulatedDeltaY,
+                    left: window.scrollX + accumulatedDeltaX,
+                    behavior: 'auto'
+                });
+            } else {
+                window.scrollBy({
+                    top: accumulatedDeltaY,
+                    left: accumulatedDeltaX,
+                    behavior: 'auto'
+                });
+            }
+            accumulatedDeltaY = 0;
+            accumulatedDeltaX = 0;
+        }
+        scrollPending = false;
+    };
+
     const handleMessage = (data, sourceComponent) => {
         if (!data) return;
 
@@ -21,11 +49,14 @@ $w.onReady(function () {
             const deltaY = Number(data.deltaY) || 0;
             const deltaX = Number(data.deltaX) || 0;
 
-            window.scrollBy({
-                top: deltaY,
-                left: deltaX,
-                behavior: 'auto' // Use 'auto' for immediate response, 'smooth' for smooth scrolling
-            });
+            // Accumulate deltas for RAF batching (smoother on Safari)
+            accumulatedDeltaY += deltaY;
+            accumulatedDeltaX += deltaX;
+
+            if (!scrollPending) {
+                scrollPending = true;
+                requestAnimationFrame(executeScroll);
+            }
         }
 
         if (data.type === 'setHeight' || data.type === 'embed-size') {

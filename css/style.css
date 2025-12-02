@@ -31,6 +31,20 @@ html.is-embed body {
     overflow: hidden !important; /* Hide inner scrollbars so scroll is delegated to parent */
     overscroll-behavior: none;
     background: transparent;
+    /* CRITICAL for Safari: Disable all touch scrolling at CSS level */
+    touch-action: none !important;
+    -webkit-overflow-scrolling: auto !important;
+    /* Prevent Safari elastic scrolling */
+    position: relative;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+}
+
+/* Ensure all child elements also don't capture scroll */
+html.is-embed *,
+html.is-embed body * {
+    touch-action: none !important;
+    -webkit-overflow-scrolling: auto !important;
 }
 
 body {
