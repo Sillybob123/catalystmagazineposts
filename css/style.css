@@ -245,6 +245,13 @@ body {
     background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
 }
 
+.hero-image-wrap picture,
+.std-image-wrap picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 .hero-image {
     width: 100%;
     height: 100%;
