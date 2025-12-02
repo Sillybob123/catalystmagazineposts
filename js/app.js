@@ -548,8 +548,9 @@ const app = {
         // Forward scroll gestures to the parent page so the iframe never traps scroll
         if (window.parent === window) return;
 
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
+        // Allow normal overflow for better scroll behavior
+        document.documentElement.style.overflow = 'visible';
+        document.body.style.overflow = 'visible';
 
         const forward = (deltaY = 0, deltaX = 0) => {
             try {
@@ -557,11 +558,13 @@ const app = {
             } catch (_) { /* noop */ }
         };
 
+        // Forward wheel events to parent
         window.addEventListener('wheel', (e) => {
             forward(e.deltaY, e.deltaX);
             e.preventDefault();
         }, { passive: false });
 
+        // Forward touch events to parent for mobile
         let lastTouchY = null;
         let lastTouchX = null;
         window.addEventListener('touchstart', (e) => {
@@ -576,7 +579,9 @@ const app = {
                 const currentY = e.touches[0].clientY;
                 const currentX = e.touches[0].clientX;
                 if (lastTouchY !== null) {
-                    forward(lastTouchY - currentY, lastTouchX - currentX);
+                    const deltaY = lastTouchY - currentY;
+                    const deltaX = lastTouchX - currentX;
+                    forward(deltaY, deltaX);
                 }
                 lastTouchY = currentY;
                 lastTouchX = currentX;
