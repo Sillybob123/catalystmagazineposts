@@ -8,6 +8,8 @@
 (function() {
   'use strict';
 
+  if (typeof window === 'undefined') return;
+
   // Batching for smoother scroll (single scrollBy per frame)
   var pendingY = 0;
   var pendingX = 0;
