@@ -1,9 +1,8 @@
 /**
  * WIX PAGE INTEGRATION SCRIPT (VELO PAGE CODE)
  *
- * Purpose: only handles messaging with the #html16 embed. All scroll work is
- * handled by the Custom Code snippet injected via Wix Dashboard, keeping this
- * file free of any direct DOM/window access to avoid "document is not defined".
+ * Purpose: only handles messaging with the #html16 embed for height sizing.
+ * No scroll passthrough. No direct DOM/window access to avoid SSR/worker errors.
  */
 
 $w.onReady(function () {
@@ -14,16 +13,6 @@ $w.onReady(function () {
         console.error('html16 component not found or does not support messaging');
         return;
     }
-
-    const sendAck = () => {
-        if (typeof embed.postMessage === 'function') {
-            try {
-                embed.postMessage({ type: 'scroll-bridge-ack' });
-            } catch (e) {
-                console.warn('Could not send handshake ack:', e);
-            }
-        }
-    };
 
     const applyHeight = (height) => {
         const numericHeight = Number(height);
@@ -44,14 +33,5 @@ $w.onReady(function () {
         if (data.type === 'setHeight' || data.type === 'embed-size') {
             applyHeight(data.height);
         }
-
-        if (data.type === 'scroll-bridge-ping') {
-            sendAck();
-        }
     });
-
-    // Eager handshakes help the iframe start forwarding scroll quickly
-    sendAck();
-    setTimeout(sendAck, 120);
-    setTimeout(sendAck, 480);
 });
