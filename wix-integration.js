@@ -14,28 +14,20 @@
  */
 
 $w.onReady(function () {
-    // Safari optimization: Use RAF for smoother, more reliable scrolling
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    // Use requestAnimationFrame for smooth scrolling across all browsers
     let scrollPending = false;
     let accumulatedDeltaY = 0;
     let accumulatedDeltaX = 0;
 
     const executeScroll = () => {
         if (accumulatedDeltaY !== 0 || accumulatedDeltaX !== 0) {
-            // Safari performs better with direct scroll position manipulation
-            if (isSafari) {
-                window.scrollTo({
-                    top: window.scrollY + accumulatedDeltaY,
-                    left: window.scrollX + accumulatedDeltaX,
-                    behavior: 'auto'
-                });
-            } else {
-                window.scrollBy({
-                    top: accumulatedDeltaY,
-                    left: accumulatedDeltaX,
-                    behavior: 'auto'
-                });
-            }
+            // Use scrollBy for both Safari and Chrome - it's more reliable in Wix context
+            window.scrollBy({
+                top: accumulatedDeltaY,
+                left: accumulatedDeltaX,
+                behavior: 'auto' // 'auto' for immediate response, no animation lag
+            });
+
             accumulatedDeltaY = 0;
             accumulatedDeltaX = 0;
         }
@@ -49,7 +41,7 @@ $w.onReady(function () {
             const deltaY = Number(data.deltaY) || 0;
             const deltaX = Number(data.deltaX) || 0;
 
-            // Accumulate deltas for RAF batching (smoother on Safari)
+            // Accumulate deltas for RAF batching (prevents scroll jank)
             accumulatedDeltaY += deltaY;
             accumulatedDeltaX += deltaX;
 
