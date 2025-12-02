@@ -1,21 +1,14 @@
 /**
- * WIX PAGE INTEGRATION SCRIPT
- *
- * Add this code to your Wix page to enable smooth scrolling through the HTML embed.
- *
- * INSTRUCTIONS:
- * 1. In your Wix editor, click on "Add" > "Embed" > "Custom Embeds" > "HTML iframe"
- * 2. Paste your HTML embed code there
- * 3. Go to your page's code panel (click "</>" at the top left)
- * 4. Click "+ Add Code" and select "Page Code"
- * 5. Paste this entire script into the code panel
- * 6. Set it to run on "Page is ready"
- * 7. Save and publish
+ * DEBUG VERSION - WIX PAGE INTEGRATION SCRIPT
+ * Use this temporarily to see what's happening in the console
  */
 
 $w.onReady(function () {
-    // Direct scroll execution (no batching - more reliable for Wix)
+    console.log('🚀 Wix integration script started');
+
+    // Direct scroll execution
     const executeScroll = (deltaY, deltaX) => {
+        console.log('📜 Scrolling:', { deltaY, deltaX });
         try {
             window.scrollBy({
                 top: deltaY,
@@ -23,7 +16,6 @@ $w.onReady(function () {
                 behavior: 'auto'
             });
         } catch (e) {
-            // Fallback for older browsers
             window.scrollBy(deltaY, deltaX);
         }
     };
@@ -31,7 +23,8 @@ $w.onReady(function () {
     const handleMessage = (data, sourceComponent) => {
         if (!data) return;
 
-        // Handle scroll events
+        console.log('📨 Message received:', data);
+
         if (data.type === 'scroll') {
             const deltaY = Number(data.deltaY) || 0;
             const deltaX = Number(data.deltaX) || 0;
@@ -41,65 +34,75 @@ $w.onReady(function () {
             }
         }
 
-        // Handle height resize
         if (data.type === 'setHeight' || data.type === 'embed-size') {
             const height = Number(data.height);
+            console.log('📏 Setting height:', height);
             if (height && height > 0 && sourceComponent) {
                 try {
                     sourceComponent.height = height;
                 } catch (e) {
-                    console.warn('Could not set component height:', e);
+                    console.warn('Could not set height:', e);
                 }
             }
         }
 
-        // Handle handshake
-        if (data.type === 'scroll-bridge-ping' && sourceComponent) {
-            try {
-                sourceComponent.postMessage({ type: 'scroll-bridge-ack' });
-            } catch (e) {
-                console.warn('Could not send handshake ack:', e);
+        if (data.type === 'scroll-bridge-ping') {
+            console.log('🤝 Handshake ping received, sending ACK');
+            if (sourceComponent) {
+                try {
+                    sourceComponent.postMessage({ type: 'scroll-bridge-ack' });
+                } catch (e) {
+                    console.warn('Could not send ACK:', e);
+                }
             }
         }
     };
 
-    // CRITICAL: Target your specific component by ID
+    // Target #html16
     try {
         const embed = $w('#html16');
+        console.log('🎯 Found #html16:', embed);
 
         if (embed && typeof embed.onMessage === 'function') {
-            // Listen for messages from the embed
+            console.log('✅ #html16 supports messaging');
+
             embed.onMessage((event) => {
+                console.log('📥 Message from #html16:', event.data);
                 handleMessage(event.data, embed);
             });
 
-            // Immediately send handshake
             if (typeof embed.postMessage === 'function') {
+                console.log('📤 Sending initial handshake to #html16');
                 embed.postMessage({ type: 'scroll-bridge-ack' });
 
-                // Send again after short delay (ensures iframe is ready)
                 setTimeout(() => {
+                    console.log('📤 Sending handshake retry (100ms)');
                     embed.postMessage({ type: 'scroll-bridge-ack' });
                 }, 100);
 
                 setTimeout(() => {
+                    console.log('📤 Sending handshake retry (500ms)');
                     embed.postMessage({ type: 'scroll-bridge-ack' });
                 }, 500);
             }
         } else {
-            console.error('html16 component not found or does not support messaging');
+            console.error('❌ #html16 does not support messaging');
         }
     } catch (e) {
-        console.error('Error setting up html16:', e);
+        console.error('❌ Error setting up #html16:', e);
     }
 
-    // FALLBACK: Global message listener for preview mode and cross-origin scenarios
+    // FALLBACK: Global message listener
+    console.log('🌐 Setting up global message listener');
     window.addEventListener('message', function(event) {
         const data = event.data;
 
-        // Handle all scroll-related messages regardless of origin (for GitHub Pages, custom domains, etc.)
+        console.log('🌍 Global message received:', {
+            origin: event.origin,
+            data: data
+        });
+
         if (data && (data.type === 'scroll' || data.type === 'scroll-bridge-ping')) {
-            // Execute scroll immediately
             if (data.type === 'scroll') {
                 const deltaY = Number(data.deltaY) || 0;
                 const deltaX = Number(data.deltaX) || 0;
@@ -108,30 +111,16 @@ $w.onReady(function () {
                 }
             }
 
-            // Send ACK back for handshake
             if (data.type === 'scroll-bridge-ping' && event.source) {
+                console.log('🤝 Sending global ACK to:', event.origin);
                 try {
                     event.source.postMessage({ type: 'scroll-bridge-ack' }, '*');
                 } catch (e) {
-                    // Ignore cross-origin errors
+                    console.warn('Could not send global ACK:', e);
                 }
             }
         }
     }, false);
-});
 
-/**
- * ALTERNATIVE: If you're using a custom HTML element instead of Wix's iframe embed,
- * add this script directly in your custom HTML element after your content:
- *
- * <script>
- *   window.addEventListener('message', function(e) {
- *     if (e.data?.type === 'scroll') {
- *       window.parent.scrollBy({
- *         top: e.data.deltaY || 0,
- *         behavior: 'auto'
- *       });
- *     }
- *   });
- * </script>
- */
+    console.log('✅ Wix integration setup complete');
+});
