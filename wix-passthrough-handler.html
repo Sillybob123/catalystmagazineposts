@@ -1,0 +1,71 @@
+<!--
+  WIXSCROLL PASSTHROUGH HANDLER
+  Copy and paste this ENTIRE code into your Wix Custom Code section
+  Settings > Custom Code > Add Custom Code > Place in "Body - End"
+-->
+
+<script>
+(function() {
+  'use strict';
+
+  // Batching variables for smooth, lag-free scrolling
+  let accumulatedDeltaY = 0;
+  let accumulatedDeltaX = 0;
+  let scrollPending = false;
+
+  // Execute accumulated scroll in next animation frame (max 60fps)
+  function executeScroll() {
+    if (accumulatedDeltaY !== 0 || accumulatedDeltaX !== 0) {
+      try {
+        window.scrollBy({
+          top: accumulatedDeltaY,
+          left: accumulatedDeltaX,
+          behavior: 'auto'
+        });
+      } catch (e) {
+        // Fallback for older browsers
+        window.scrollBy(accumulatedDeltaY, accumulatedDeltaX);
+      }
+
+      // Reset accumulators
+      accumulatedDeltaY = 0;
+      accumulatedDeltaX = 0;
+    }
+    scrollPending = false;
+  }
+
+  // Listen for messages from embedded iframe
+  window.addEventListener('message', function(event) {
+    var data = event.data;
+
+    if (!data) return;
+
+    // Handle scroll events
+    if (data.type === 'scroll') {
+      var deltaY = Number(data.deltaY) || 0;
+      var deltaX = Number(data.deltaX) || 0;
+
+      if (deltaY !== 0 || deltaX !== 0) {
+        // Accumulate deltas for batching
+        accumulatedDeltaY += deltaY;
+        accumulatedDeltaX += deltaX;
+
+        // Schedule execution in next animation frame
+        if (!scrollPending) {
+          scrollPending = true;
+          requestAnimationFrame(executeScroll);
+        }
+      }
+    }
+
+    // Handle handshake from embed
+    if (data.type === 'scroll-bridge-ping' && event.source) {
+      try {
+        event.source.postMessage({ type: 'scroll-bridge-ack' }, '*');
+      } catch (e) {
+        // Silently ignore cross-origin errors
+      }
+    }
+  }, false);
+})();
+</script>
