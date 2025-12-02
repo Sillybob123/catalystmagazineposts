@@ -1,37 +1,128 @@
 /**
- * WIX PAGE INTEGRATION SCRIPT (VELO PAGE CODE)
+ * WIX PAGE INTEGRATION SCRIPT
  *
- * Purpose: only handles messaging with the #html16 embed for height sizing.
- * No scroll passthrough. No direct DOM/window access to avoid SSR/worker errors.
+ * Add this code to your Wix page to enable smooth scrolling through the HTML embed.
+ *
+ * INSTRUCTIONS:
+ * 1. In your Wix editor, click on "Add" > "Embed" > "Custom Embeds" > "HTML iframe"
+ * 2. Paste your HTML embed code there
+ * 3. Go to your page's code panel (click "</>" at the top left)
+ * 4. Click "+ Add Code" and select "Page Code"
+ * 5. Paste this entire script into the code panel
+ * 6. Set it to run on "Page is ready"
+ * 7. Save and publish
  */
 
 $w.onReady(function () {
-    // Target your specific HTML iframe component
-    const embed = $w('#html16');
+    // Safari optimization: Use RAF for smoother, more reliable scrolling
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    let scrollPending = false;
+    let accumulatedDeltaY = 0;
+    let accumulatedDeltaX = 0;
 
-    if (!embed || typeof embed.onMessage !== 'function') {
-        console.error('html16 component not found or does not support messaging');
-        return;
-    }
+    const executeScroll = () => {
+        if (accumulatedDeltaY !== 0 || accumulatedDeltaX !== 0) {
+            // Safari performs better with direct scroll position manipulation
+            if (isSafari) {
+                window.scrollTo({
+                    top: window.scrollY + accumulatedDeltaY,
+                    left: window.scrollX + accumulatedDeltaX,
+                    behavior: 'auto'
+                });
+            } else {
+                window.scrollBy({
+                    top: accumulatedDeltaY,
+                    left: accumulatedDeltaX,
+                    behavior: 'auto'
+                });
+            }
+            accumulatedDeltaY = 0;
+            accumulatedDeltaX = 0;
+        }
+        scrollPending = false;
+    };
 
-    const applyHeight = (height) => {
-        const numericHeight = Number(height);
-        if (!numericHeight || numericHeight <= 0) return;
+    const handleMessage = (data, sourceComponent) => {
+        if (!data) return;
 
-        try {
-            embed.height = numericHeight;
-        } catch (e) {
-            console.warn('Could not set component height:', e);
+        if (data.type === 'scroll') {
+            const deltaY = Number(data.deltaY) || 0;
+            const deltaX = Number(data.deltaX) || 0;
+
+            // Accumulate deltas for RAF batching (smoother on Safari)
+            accumulatedDeltaY += deltaY;
+            accumulatedDeltaX += deltaX;
+
+            if (!scrollPending) {
+                scrollPending = true;
+                requestAnimationFrame(executeScroll);
+            }
+        }
+
+        if (data.type === 'setHeight' || data.type === 'embed-size') {
+            const height = Number(data.height);
+            if (height && height > 0) {
+                if (sourceComponent && typeof sourceComponent.height === 'number') {
+                    sourceComponent.height = height;
+                } else {
+                    const iframe = document.querySelector('iframe[src*="catalystmagazineposts"]') ||
+                                  document.querySelector('iframe.html-embed-iframe');
+
+                    if (iframe) {
+                        iframe.style.height = height + 'px';
+                    }
+                }
+            }
+        }
+
+        if (data.type === 'scroll-bridge-ping' && sourceComponent && typeof sourceComponent.postMessage === 'function') {
+            sourceComponent.postMessage({ type: 'scroll-bridge-ack' });
         }
     };
 
-    // Listen only for messages that matter to Wix components (no scrolling here)
-    embed.onMessage((event) => {
-        const data = event.data;
-        if (!data) return;
+    const wireHtmlComponent = (component) => {
+        if (!component || typeof component.onMessage !== 'function') return;
+        component.onMessage((event) => handleMessage(event.data, component));
 
-        if (data.type === 'setHeight' || data.type === 'embed-size') {
-            applyHeight(data.height);
+        // Tell the embedded frame we're ready to handle scroll passthrough
+        if (typeof component.postMessage === 'function') {
+            component.postMessage({ type: 'scroll-bridge-ack' });
         }
-    });
+    };
+
+    // Attach to any HTML embeds on the page
+    const htmlComponents = $w('HtmlComponent');
+    if (Array.isArray(htmlComponents)) {
+        htmlComponents.forEach(wireHtmlComponent);
+    } else if (htmlComponents) {
+        // $w('HtmlComponent') may return a single component when only one exists
+        if (typeof htmlComponents.forEach === 'function') {
+            htmlComponents.forEach(wireHtmlComponent);
+        } else {
+            wireHtmlComponent(htmlComponents);
+        }
+    }
+
+    // Fallback listener (covers preview mode / non-Wix shells)
+    if (typeof window !== 'undefined') {
+        window.addEventListener('message', function(event) {
+            handleMessage(event.data, null);
+        }, false);
+    }
 });
+
+/**
+ * ALTERNATIVE: If you're using a custom HTML element instead of Wix's iframe embed,
+ * add this script directly in your custom HTML element after your content:
+ *
+ * <script>
+ *   window.addEventListener('message', function(e) {
+ *     if (e.data?.type === 'scroll') {
+ *       window.parent.scrollBy({
+ *         top: e.data.deltaY || 0,
+ *         behavior: 'auto'
+ *       });
+ *     }
+ *   });
+ * </script>
+ */

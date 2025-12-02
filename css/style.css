@@ -905,29 +905,3 @@ body {
         grid-template-columns: 1fr;
     }
 }
-
-/* ================================
-   PERFORMANCE OPTIMIZATIONS FOR SCROLL PASSTHROUGH
-================================ */
-html.is-embed {
-    /* Optimize for smooth scrolling and rendering */
-    contain: layout style paint;
-    will-change: contents;
-}
-
-/* Optimize animated elements for GPU acceleration */
-.hero-track,
-.std-track,
-.editorial-grid {
-    will-change: transform;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-}
-
-/* Optimize images for better scroll performance */
-.hero-image,
-.std-image,
-.editorial-image {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-}
