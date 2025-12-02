@@ -28,23 +28,11 @@ html.is-embed body {
     padding: 0;
     width: 100%;
     height: auto;
-    overflow: hidden !important; /* Hide inner scrollbars so scroll is delegated to parent */
-    overscroll-behavior: none;
     background: transparent;
-    /* CRITICAL for Safari: Disable all touch scrolling at CSS level */
-    touch-action: none !important;
-    -webkit-overflow-scrolling: auto !important;
-    /* Prevent Safari elastic scrolling */
-    position: relative;
-    overflow-x: hidden !important;
-    overflow-y: hidden !important;
-}
-
-/* Ensure all child elements also don't capture scroll */
-html.is-embed *,
-html.is-embed body * {
-    touch-action: none !important;
-    -webkit-overflow-scrolling: auto !important;
+    /* Enable native scrolling - iframe will expand to full height */
+    overflow: visible;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 body {
