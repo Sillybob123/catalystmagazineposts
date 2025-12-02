@@ -121,10 +121,14 @@ const app = {
         const author = authorFromName || row.Author || 'Catalyst Staff';
         const category = this.normalizeCategory(row.Category || row['Main Category'] || '');
 
-        const link = linkPath.startsWith('http') ? linkPath : 
+        // Build the article link from Post Page URL or Slug
+        const link = linkPath.startsWith('http') ? linkPath :
             `https://www.catalyst-magazine.com${linkPath.startsWith('/') ? linkPath : `/post/${linkPath}`}`;
 
         const dateDisplay = dateFromName || this.formatDate(publishedISO) || (publishedISO || '').slice(0, 10);
+
+        // Log article link for debugging
+        console.log(`Article: "${title}" -> ${link}`);
 
         return { title, author, date: dateDisplay, published: publishedISO, image: coverImage, link, category, excerpt };
     },
@@ -191,8 +195,12 @@ const app = {
     },
 
     handleNav(url) {
-        if (window.top) window.top.location.href = url;
-        else window.location.href = url;
+        // If in iframe, navigate the parent window to break out
+        if (window.top && window.top !== window) {
+            window.top.location.href = url;
+        } else {
+            window.location.href = url;
+        }
     },
 
     bindNav() {
