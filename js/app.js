@@ -3,17 +3,12 @@ const app = {
     editorials: [],
 
     async init() {
-        // 1. PREVENT SCROLL TRAPPING
-        // We do NOT add 'is-embed' class to avoid the 'touch-action: none' CSS that kills scrolling.
-        // We only hide the internal scrollbar so the parent page handles scrolling.
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
+        // 1. ENABLE NATIVE SCROLLING - Let the iframe expand and browser handle scroll
+        // Remove overflow hidden to allow natural scrolling
+        document.documentElement.style.overflow = 'auto';
+        document.body.style.overflow = 'auto';
 
-        if (this.shouldEnableScrollBridge()) {
-            this.setupScrollBridge();
-        }
-
-        // 2. ENABLE AUTO-RESIZE
+        // 2. ENABLE AUTO-RESIZE - iframe will expand to full content height
         this.syncEmbedHeight();
 
         // 3. LOAD CONTENT
@@ -471,83 +466,6 @@ const app = {
         setTimeout(postHeight, 3000);
     },
 
-    shouldEnableScrollBridge() {
-        if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-        if (window.parent === window) return false;
-        const ua = navigator.userAgent || '';
-        const platform = navigator.platform || '';
-        const isIOS = /iP(ad|hone|od)/i.test(platform) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|OPR|Edg/i.test(ua);
-        return isIOS || isSafari;
-    },
-
-    setupScrollBridge() {
-        if (window.parent === window) return;
-        if (this.scrollBridge?.initialized) return;
-
-        const state = {
-            initialized: true,
-            acked: false,
-            lastTouchY: null,
-            pingTimer: null
-        };
-        this.scrollBridge = state;
-
-        const safePost = (payload) => {
-            try {
-                window.parent.postMessage(payload, '*');
-            } catch (err) {
-                console.warn('Scroll bridge postMessage failed', err);
-            }
-        };
-
-        const pingParent = () => safePost({ type: 'scroll-bridge-ping', ts: Date.now() });
-        pingParent();
-        state.pingTimer = setInterval(pingParent, 1600);
-
-        window.addEventListener('message', (event) => {
-            if (event?.data?.type === 'scroll-bridge-ack') {
-                state.acked = true;
-                if (state.pingTimer) {
-                    clearInterval(state.pingTimer);
-                    state.pingTimer = setInterval(pingParent, 10000);
-                }
-            }
-        });
-
-        const emitScroll = (deltaY, meta = {}) => {
-            if (!state.acked || !deltaY) return false;
-            safePost({ type: 'scroll', deltaY, meta: { ...meta, ts: Date.now() } });
-            return true;
-        };
-
-        window.addEventListener('wheel', (evt) => {
-            if (!emitScroll(evt.deltaY, { pointer: 'wheel', ctrlKey: evt.ctrlKey })) return;
-            evt.preventDefault();
-        }, { passive: false });
-
-        window.addEventListener('touchstart', (evt) => {
-            const firstTouch = evt.touches && evt.touches[0];
-            state.lastTouchY = firstTouch ? firstTouch.clientY : null;
-            pingParent();
-        }, { passive: true });
-
-        window.addEventListener('touchmove', (evt) => {
-            if (state.lastTouchY === null) return;
-            if (!evt.touches || !evt.touches.length) return;
-            const currentY = evt.touches[0].clientY;
-            const deltaY = state.lastTouchY - currentY;
-            if (Math.abs(deltaY) < 0.5) return;
-            if (emitScroll(deltaY, { pointer: 'touch' })) {
-                evt.preventDefault();
-                state.lastTouchY = currentY;
-            }
-        }, { passive: false });
-
-        window.addEventListener('touchend', () => {
-            state.lastTouchY = null;
-        });
-    }
 };
 
 document.addEventListener('DOMContentLoaded', () => app.init());
