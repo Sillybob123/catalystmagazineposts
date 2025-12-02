@@ -1,137 +1,57 @@
 /**
- * WIX PAGE INTEGRATION SCRIPT
+ * WIX PAGE INTEGRATION SCRIPT (VELO PAGE CODE)
  *
- * Add this code to your Wix page to enable smooth scrolling through the HTML embed.
- *
- * INSTRUCTIONS:
- * 1. In your Wix editor, click on "Add" > "Embed" > "Custom Embeds" > "HTML iframe"
- * 2. Paste your HTML embed code there
- * 3. Go to your page's code panel (click "</>" at the top left)
- * 4. Click "+ Add Code" and select "Page Code"
- * 5. Paste this entire script into the code panel
- * 6. Set it to run on "Page is ready"
- * 7. Save and publish
+ * Purpose: only handles messaging with the #html16 embed. All scroll work is
+ * handled by the Custom Code snippet injected via Wix Dashboard, keeping this
+ * file free of any direct DOM/window access to avoid "document is not defined".
  */
 
 $w.onReady(function () {
-    // Direct scroll execution (no batching - more reliable for Wix)
-    const executeScroll = (deltaY, deltaX) => {
-        try {
-            window.scrollBy({
-                top: deltaY,
-                left: deltaX,
-                behavior: 'auto'
-            });
-        } catch (e) {
-            // Fallback for older browsers
-            window.scrollBy(deltaY, deltaX);
-        }
-    };
+    // Target your specific HTML iframe component
+    const embed = $w('#html16');
 
-    const handleMessage = (data, sourceComponent) => {
-        if (!data) return;
+    if (!embed || typeof embed.onMessage !== 'function') {
+        console.error('html16 component not found or does not support messaging');
+        return;
+    }
 
-        // Handle scroll events
-        if (data.type === 'scroll') {
-            const deltaY = Number(data.deltaY) || 0;
-            const deltaX = Number(data.deltaX) || 0;
-
-            if (deltaY !== 0 || deltaX !== 0) {
-                executeScroll(deltaY, deltaX);
-            }
-        }
-
-        // Handle height resize
-        if (data.type === 'setHeight' || data.type === 'embed-size') {
-            const height = Number(data.height);
-            if (height && height > 0 && sourceComponent) {
-                try {
-                    sourceComponent.height = height;
-                } catch (e) {
-                    console.warn('Could not set component height:', e);
-                }
-            }
-        }
-
-        // Handle handshake
-        if (data.type === 'scroll-bridge-ping' && sourceComponent) {
+    const sendAck = () => {
+        if (typeof embed.postMessage === 'function') {
             try {
-                sourceComponent.postMessage({ type: 'scroll-bridge-ack' });
+                embed.postMessage({ type: 'scroll-bridge-ack' });
             } catch (e) {
                 console.warn('Could not send handshake ack:', e);
             }
         }
     };
 
-    // CRITICAL: Target your specific component by ID
-    try {
-        const embed = $w('#html16');
+    const applyHeight = (height) => {
+        const numericHeight = Number(height);
+        if (!numericHeight || numericHeight <= 0) return;
 
-        if (embed && typeof embed.onMessage === 'function') {
-            // Listen for messages from the embed
-            embed.onMessage((event) => {
-                handleMessage(event.data, embed);
-            });
-
-            // Immediately send handshake
-            if (typeof embed.postMessage === 'function') {
-                embed.postMessage({ type: 'scroll-bridge-ack' });
-
-                // Send again after short delay (ensures iframe is ready)
-                setTimeout(() => {
-                    embed.postMessage({ type: 'scroll-bridge-ack' });
-                }, 100);
-
-                setTimeout(() => {
-                    embed.postMessage({ type: 'scroll-bridge-ack' });
-                }, 500);
-            }
-        } else {
-            console.error('html16 component not found or does not support messaging');
+        try {
+            embed.height = numericHeight;
+        } catch (e) {
+            console.warn('Could not set component height:', e);
         }
-    } catch (e) {
-        console.error('Error setting up html16:', e);
-    }
+    };
 
-    // FALLBACK: Global message listener for preview mode and cross-origin scenarios
-    window.addEventListener('message', function(event) {
+    // Listen only for messages that matter to Wix components (no scrolling here)
+    embed.onMessage((event) => {
         const data = event.data;
+        if (!data) return;
 
-        // Handle all scroll-related messages regardless of origin (for GitHub Pages, custom domains, etc.)
-        if (data && (data.type === 'scroll' || data.type === 'scroll-bridge-ping')) {
-            // Execute scroll immediately
-            if (data.type === 'scroll') {
-                const deltaY = Number(data.deltaY) || 0;
-                const deltaX = Number(data.deltaX) || 0;
-                if (deltaY !== 0 || deltaX !== 0) {
-                    executeScroll(deltaY, deltaX);
-                }
-            }
-
-            // Send ACK back for handshake
-            if (data.type === 'scroll-bridge-ping' && event.source) {
-                try {
-                    event.source.postMessage({ type: 'scroll-bridge-ack' }, '*');
-                } catch (e) {
-                    // Ignore cross-origin errors
-                }
-            }
+        if (data.type === 'setHeight' || data.type === 'embed-size') {
+            applyHeight(data.height);
         }
-    }, false);
-});
 
-/**
- * ALTERNATIVE: If you're using a custom HTML element instead of Wix's iframe embed,
- * add this script directly in your custom HTML element after your content:
- *
- * <script>
- *   window.addEventListener('message', function(e) {
- *     if (e.data?.type === 'scroll') {
- *       window.parent.scrollBy({
- *         top: e.data.deltaY || 0,
- *         behavior: 'auto'
- *       });
- *     }
- *   });
- * </script>
- */
+        if (data.type === 'scroll-bridge-ping') {
+            sendAck();
+        }
+    });
+
+    // Eager handshakes help the iframe start forwarding scroll quickly
+    sendAck();
+    setTimeout(sendAck, 120);
+    setTimeout(sendAck, 480);
+});

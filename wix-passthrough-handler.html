@@ -8,62 +8,47 @@
 (function() {
   'use strict';
 
-  // Batching variables for smooth, lag-free scrolling
-  let accumulatedDeltaY = 0;
-  let accumulatedDeltaX = 0;
-  let scrollPending = false;
+  // Batching for smoother scroll (single scrollBy per frame)
+  var pendingY = 0;
+  var pendingX = 0;
+  var rafId = null;
 
-  // Execute accumulated scroll in next animation frame (max 60fps)
-  function executeScroll() {
-    if (accumulatedDeltaY !== 0 || accumulatedDeltaX !== 0) {
-      try {
-        window.scrollBy({
-          top: accumulatedDeltaY,
-          left: accumulatedDeltaX,
-          behavior: 'auto'
-        });
-      } catch (e) {
-        // Fallback for older browsers
-        window.scrollBy(accumulatedDeltaY, accumulatedDeltaX);
-      }
-
-      // Reset accumulators
-      accumulatedDeltaY = 0;
-      accumulatedDeltaX = 0;
+  function flushScroll() {
+    rafId = null;
+    if (pendingY === 0 && pendingX === 0) return;
+    try {
+      window.scrollBy({ top: pendingY, left: pendingX, behavior: 'auto' });
+    } catch (e) {
+      window.scrollBy(pendingY, pendingX);
     }
-    scrollPending = false;
+    pendingY = 0;
+    pendingX = 0;
   }
 
-  // Listen for messages from embedded iframe
   window.addEventListener('message', function(event) {
     var data = event.data;
-
     if (!data) return;
 
-    // Handle scroll events
+    // Scroll payload from child iframe
     if (data.type === 'scroll') {
       var deltaY = Number(data.deltaY) || 0;
       var deltaX = Number(data.deltaX) || 0;
-
       if (deltaY !== 0 || deltaX !== 0) {
-        // Accumulate deltas for batching
-        accumulatedDeltaY += deltaY;
-        accumulatedDeltaX += deltaX;
-
-        // Schedule execution in next animation frame
-        if (!scrollPending) {
-          scrollPending = true;
-          requestAnimationFrame(executeScroll);
+        pendingY += deltaY;
+        pendingX += deltaX;
+        if (rafId === null) {
+          var raf = window.requestAnimationFrame || function(cb) { return setTimeout(cb, 16); };
+          rafId = raf(flushScroll);
         }
       }
     }
 
-    // Handle handshake from embed
+    // Handshake ACK back to iframe
     if (data.type === 'scroll-bridge-ping' && event.source) {
       try {
         event.source.postMessage({ type: 'scroll-bridge-ack' }, '*');
-      } catch (e) {
-        // Silently ignore cross-origin errors
+      } catch (_) {
+        // Ignore cross-origin issues
       }
     }
   }, false);

@@ -679,18 +679,17 @@ const app = {
         const body = document.body;
 
         // Force hide scrollbars and disable scrolling in both Chrome and Safari
-        if (root) {
-            root.style.overflow = 'hidden';
-            root.style.overscrollBehavior = 'none';
-            root.style.webkitOverflowScrolling = 'auto';
-            root.style.touchAction = 'none'; // Critical for Safari
-        }
-        if (body) {
-            body.style.overflow = 'hidden';
-            body.style.overscrollBehavior = 'none';
-            body.style.webkitOverflowScrolling = 'auto';
-            body.style.touchAction = 'none'; // Critical for Safari
-        }
+        const applyNoScrollStyles = (el) => {
+            if (!el || !el.style) return;
+            el.style.overflow = 'hidden';
+            el.style.overscrollBehavior = 'none';
+            el.style.webkitOverflowScrolling = 'auto';
+            el.style.touchAction = 'none';
+            el.style.setProperty('touch-action', 'none', 'important');
+        };
+
+        applyNoScrollStyles(root);
+        applyNoScrollStyles(body);
 
         let bridgeReady = false;
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -713,6 +712,29 @@ const app = {
             return sent;
         };
 
+        // Batch scroll events into a single postMessage per frame
+        let pendingDeltaY = 0;
+        let pendingDeltaX = 0;
+        let rafId = null;
+
+        const flushScroll = () => {
+            rafId = null;
+            if (pendingDeltaY === 0 && pendingDeltaX === 0) return;
+            postToAncestors({ type: 'scroll', deltaY: pendingDeltaY, deltaX: pendingDeltaX });
+            pendingDeltaY = 0;
+            pendingDeltaX = 0;
+        };
+
+        const queueScroll = (deltaY = 0, deltaX = 0) => {
+            if (deltaY === 0 && deltaX === 0) return;
+            pendingDeltaY += deltaY;
+            pendingDeltaX += deltaX;
+            if (rafId === null) {
+                const raf = window.requestAnimationFrame || function(cb) { return setTimeout(cb, 16); };
+                rafId = raf(flushScroll);
+            }
+        };
+
         // Handshake with parent - more aggressive for Safari
         const requestBridge = () => postToAncestors({ type: 'scroll-bridge-ping' });
 
@@ -733,17 +755,12 @@ const app = {
             }
         });
 
-        const forward = (deltaY = 0, deltaX = 0) => {
-            postToAncestors({ type: 'scroll', deltaY, deltaX });
-            return bridgeReady;
-        };
-
         // AGGRESSIVE: Always preventDefault, even if bridge isn't ready
         // This prevents scroll trap while waiting for handshake
         const wheelHandler = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            forward(e.deltaY, e.deltaX);
+            queueScroll(e.deltaY, e.deltaX);
             return false;
         };
 
@@ -784,7 +801,7 @@ const app = {
                     const deltaX = lastTouchX - currentX;
 
                     // Forward to parent
-                    forward(deltaY, deltaX);
+                    queueScroll(deltaY, deltaX);
                 }
 
                 lastTouchY = currentY;
@@ -837,7 +854,7 @@ const app = {
                     if (lastPointerY !== null && lastPointerX !== null) {
                         const deltaY = lastPointerY - e.clientY;
                         const deltaX = lastPointerX - e.clientX;
-                        forward(deltaY, deltaX);
+                        queueScroll(deltaY, deltaX);
                     }
 
                     lastPointerY = e.clientY;

@@ -1,0 +1,86 @@
+╔═══════════════════════════════════════════════════════════════╗
+║           WIX SCROLL PASSTHROUGH - QUICK REFERENCE            ║
+╚═══════════════════════════════════════════════════════════════╝
+
+📋 WHAT TO COPY TO WIX:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open file: wix-passthrough-handler.html
+2. Copy ENTIRE contents (Ctrl+A or Cmd+A)
+3. Go to: Wix Dashboard > Settings > Custom Code
+4. Click: "+ Add Custom Code"
+5. Paste the code
+6. Set "Place Code in" to: "Body - end" ⚠️ IMPORTANT!
+7. Set "Add Code to Pages": All Pages
+8. Click "Apply"
+9. REMOVE all code from Velo Page Code (leave it empty)
+10. Publish your site
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ CHECKLIST:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Copied wix-passthrough-handler.html to Wix Custom Code
+[ ] Set "Place Code in" to "Body - end" (not "Head")
+[ ] Removed ALL code from Velo Page Code panel
+[ ] Committed and pushed all files to GitHub
+[ ] Verified GitHub Pages URL loads correctly
+[ ] Published Wix site
+[ ] Hard refreshed browser (Ctrl+Shift+R / Cmd+Shift+R)
+[ ] Tested scrolling in Chrome (should work smoothly)
+[ ] Tested scrolling in Safari (should work smoothly)
+[ ] Tested on iPhone/iPad if available
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ CRITICAL REMINDERS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ DO NOT put the code in Velo Page Code
+❌ DO NOT put the code in "Head" (must be "Body - end")
+✅ DO remove all existing Velo Page Code
+✅ DO hard refresh after publishing (Ctrl+Shift+R)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🐛 TROUBLESHOOTING:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Problem: Still laggy
+→ Clear cache & hard refresh (Ctrl+Shift+Del, then Ctrl+Shift+R)
+→ Verify code is in "Body - end", not "Head"
+
+Problem: Not scrolling at all
+→ Open console (F12), check for errors
+→ Verify GitHub Pages URL is correct in Wix embed
+→ Make sure Velo Page Code is completely empty
+
+Problem: Works in Chrome but not Safari
+→ Verify index.html has early Safari script (lines 24-48)
+→ Hard refresh Safari with Cmd+Shift+R
+→ Check that your GitHub files are up to date
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 FILES SUMMARY:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FOR WIX (Copy to Custom Code):
+→ wix-passthrough-handler.html
+
+FOR GITHUB (Keep on GitHub Pages):
+→ index.html (embed HTML)
+→ css/style.css (styles with optimizations)
+→ js/app.js (scroll sender)
+→ js/data.js (your data)
+
+REFERENCE ONLY (Don't use):
+→ wix-integration.js (old Velo code - ignore)
+→ wix-integration-DEBUG.js (debug version - ignore)
+→ WIX-SETUP-INSTRUCTIONS.md (detailed guide)
+→ QUICK-REFERENCE.txt (this file)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Need help? Check WIX-SETUP-INSTRUCTIONS.md for detailed guide.
