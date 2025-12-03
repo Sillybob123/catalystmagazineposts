@@ -7,6 +7,9 @@ const app = {
         // Remove overflow hidden to allow natural scrolling
         document.documentElement.style.overflow = 'auto';
         document.body.style.overflow = 'auto';
+        document.documentElement.style.height = 'auto';
+        document.body.style.height = 'auto';
+        document.body.style.minHeight = '100%';
 
         // 2. ENABLE AUTO-RESIZE - iframe will expand to full content height
         this.syncEmbedHeight();
@@ -452,26 +455,63 @@ const app = {
         // Send the Full Height to parent so it can resize the iframe
         if (window.parent === window) return;
 
+        const computeHeight = () => {
+            const body = document.body;
+            const doc = document.documentElement;
+            const values = [
+                body?.scrollHeight || 0,
+                body?.offsetHeight || 0,
+                body?.clientHeight || 0,
+                doc?.scrollHeight || 0,
+                doc?.offsetHeight || 0,
+                doc?.clientHeight || 0
+            ];
+            // Add a small buffer to avoid rounding issues at higher zoom levels
+            return Math.ceil(Math.max(...values) + 32);
+        };
+
+        let lastHeight = 0;
         const postHeight = () => {
-            // Get height including margins/overflow
-            const height = document.body.scrollHeight;
-            if (height > 0) {
-                window.parent.postMessage({ type: 'setHeight', height }, '*');
-                window.parent.postMessage({ type: 'embed-size', height }, '*');
+            const height = computeHeight();
+            if (!height || Math.abs(height - lastHeight) < 6) return;
+            lastHeight = height;
+            const payload = { type: 'setHeight', height };
+            const secondary = { type: 'embed-size', height };
+            try {
+                window.parent.postMessage(payload, '*');
+                window.parent.postMessage(secondary, '*');
+                if (window.top && window.top !== window && window.top !== window.parent) {
+                    window.top.postMessage(payload, '*');
+                    window.top.postMessage(secondary, '*');
+                }
+            } catch (err) {
+                console.warn('Unable to post height to parent', err);
             }
         };
 
-        // Send updates whenever content changes
+        // Initial + timed updates
         postHeight();
-        window.addEventListener('resize', postHeight);
-        
-        // Watch for DOM changes (like images loading)
-        if ('ResizeObserver' in window) {
-            new ResizeObserver(() => requestAnimationFrame(postHeight)).observe(document.body);
+        [500, 1500, 3500].forEach(delay => setTimeout(postHeight, delay));
+
+        // Resize/zoom listeners
+        ['resize', 'load'].forEach(evt => window.addEventListener(evt, () => requestAnimationFrame(postHeight), { passive: true }));
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', postHeight, { passive: true });
+            window.visualViewport.addEventListener('scroll', postHeight, { passive: true });
         }
-        // Fallback polling for slow networks
-        setTimeout(postHeight, 1000);
-        setTimeout(postHeight, 3000);
+
+        // Watch for layout/content changes
+        if ('ResizeObserver' in window) {
+            const ro = new ResizeObserver(() => requestAnimationFrame(postHeight));
+            if (document.body) ro.observe(document.body);
+            if (document.documentElement) ro.observe(document.documentElement);
+            const feed = document.querySelector('.feed-container');
+            if (feed) ro.observe(feed);
+        }
+        if ('MutationObserver' in window) {
+            const mo = new MutationObserver(() => postHeight());
+            mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+        }
     },
 
 };

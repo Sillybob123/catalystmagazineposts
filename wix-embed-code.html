@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        html, body {
+            width: 100%;
+            min-height: 100%;
+            background: transparent;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -11,8 +17,7 @@
         }
 
         body {
-            overflow: auto;
-            background: transparent;
+            overflow: visible;
         }
 
         iframe {
@@ -44,33 +49,52 @@
     ></iframe>
 
     <script>
-        // Auto-resize iframe to match content height
-        window.addEventListener('message', function(event) {
+        (function() {
             const iframe = document.getElementById('magazine-embed');
-            const data = event.data || {};
+            let lastHeight = 1200; // safe fallback for zoomed-in users
 
-            // Expand iframe height to match content
-            if (data && (data.type === 'setHeight' || data.type === 'embed-size')) {
-                const height = data.height;
-                if (height && iframe) {
-                    iframe.style.height = height + 'px';
-                    iframe.style.minHeight = height + 'px';
+            const applyHeight = (rawHeight) => {
+                if (!iframe) return;
+                const parsed = Math.ceil(Number(rawHeight) || 0);
+                const next = Math.max(parsed + 24, 1200);
+                if (next === lastHeight) return;
+                lastHeight = next;
+                iframe.style.height = `${next}px`;
+                iframe.style.minHeight = `${next}px`;
+
+                // Bubble the height up to the host page (Wix listens for postMessages)
+                try {
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({ type: 'setHeight', height: next }, '*');
+                        window.parent.postMessage({ type: 'embed-size', height: next }, '*');
+                    }
+                } catch (err) {
+                    console.warn('Unable to propagate height to parent', err);
                 }
-            }
-        }, false);
+            };
 
-        // Ensure iframe loads properly
-        document.addEventListener('DOMContentLoaded', function() {
-            const iframe = document.getElementById('magazine-embed');
+            // Auto-resize iframe to match content height
+            window.addEventListener('message', function(event) {
+                const data = event.data || {};
+                if (!data || typeof data !== 'object') return;
+                if (data.type === 'setHeight' || data.type === 'embed-size') {
+                    applyHeight(data.height);
+                }
+            }, false);
 
-            // Set initial minimum height
-            iframe.style.minHeight = '1000px';
-
-            // Listen for load event
-            iframe.addEventListener('load', function() {
-                console.log('Catalyst Magazine loaded successfully');
+            // Ensure iframe loads properly and has a generous minimum height
+            document.addEventListener('DOMContentLoaded', function() {
+                if (iframe) {
+                    iframe.style.minHeight = `${lastHeight}px`;
+                    iframe.addEventListener('load', function() {
+                        applyHeight(lastHeight);
+                        console.log('Catalyst Magazine loaded successfully');
+                    });
+                }
             });
-        });
+
+            window.addEventListener('resize', () => applyHeight(lastHeight));
+        })();
     </script>
 </body>
 </html>
