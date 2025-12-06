@@ -29,7 +29,6 @@ const app = {
             this.renderCategories();
         }
         this.renderEditorials();
-        this.initSearch();
         this.bindNav();
         // Note: observeSections removed - using filter mode instead of scroll mode
         
@@ -384,51 +383,6 @@ const app = {
             const img = card.querySelector('.editorial-image');
             if (img.complete) img.classList.add('loaded');
             else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
-        });
-    },
-
-    initSearch() {
-        const searchInput = document.getElementById('searchInput');
-        if (!searchInput) return;
-        searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase().trim();
-
-            // If search is empty, restore category filter state
-            if (!term) {
-                // Remove hidden class from all cards
-                document.querySelectorAll('.data-card').forEach(card => {
-                    card.classList.remove('hidden');
-                });
-                // Re-apply current category filter
-                this.filterByCategory(this.currentFilter);
-                document.getElementById('noResults')?.classList.add('hidden');
-                return;
-            }
-
-            // Reset to show all sections first (search across everything)
-            document.getElementById('recent')?.style.removeProperty('display');
-            document.querySelectorAll('.category-row').forEach(row => row.style.removeProperty('display'));
-            document.getElementById('editorials')?.style.removeProperty('display');
-
-            let visibleCount = 0;
-            document.querySelectorAll('.data-card').forEach(card => {
-                const match = [card.dataset.title, card.dataset.auth, card.dataset.excerpt, card.dataset.cat].some(t => t && t.includes(term));
-                card.classList.toggle('hidden', !match);
-                if (match) visibleCount++;
-            });
-
-            // Hide sections that have no visible cards
-            document.querySelectorAll('.category-row, .hero-section, .editorial-section').forEach(sec => {
-                const hasVisible = sec.querySelectorAll('.data-card:not(.hidden)').length > 0;
-                sec.style.display = hasVisible ? 'block' : 'none';
-            });
-
-            const noResults = document.getElementById('noResults');
-            if (noResults) noResults.classList.toggle('hidden', visibleCount !== 0);
-
-            // Update height after search filtering
-            setTimeout(() => this.syncEmbedHeight(), 100);
-            setTimeout(() => this.syncEmbedHeight(), 300);
         });
     },
 
