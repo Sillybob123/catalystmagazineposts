@@ -4,10 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
+        /* CRITICAL: Prevent ALL scrollbars - parent Wix page handles scrolling */
         html, body {
             width: 100%;
             min-height: 100%;
+            height: auto;
             background: transparent;
+            margin: 0;
+            padding: 0;
+            overflow: hidden !important;
+            overflow-x: hidden !important;
+            overflow-y: hidden !important;
+            /* Hide scrollbars in all browsers */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
         }
 
         * {
@@ -16,16 +33,22 @@
             box-sizing: border-box;
         }
 
-        body {
-            overflow: visible;
-        }
-
         iframe {
             width: 100%;
             min-height: 100vh;
             border: none;
             display: block;
             background: transparent;
+            /* CRITICAL: No scrollbars on iframe - content expands iframe height */
+            overflow: hidden !important;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        iframe::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
         }
     </style>
 </head>
@@ -44,6 +67,7 @@
         id="magazine-embed"
         title="Catalyst Magazine"
         loading="eager"
+        scrolling="no"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms allow-top-navigation"
     ></iframe>
@@ -53,11 +77,23 @@
             const iframe = document.getElementById('magazine-embed');
             let lastHeight = 1200; // safe fallback for zoomed-in users
 
+            // Detect browser zoom to add appropriate buffer
+            const getZoomFactor = () => {
+                const vpScale = window.visualViewport?.scale || 1;
+                const widthRatio = window.outerWidth && window.innerWidth ? (window.outerWidth / window.innerWidth) : 1;
+                return Math.max(1, vpScale, widthRatio > 0.5 ? widthRatio : 1);
+            };
+
             const applyHeight = (rawHeight) => {
                 if (!iframe) return;
                 const parsed = Math.ceil(Number(rawHeight) || 0);
-                const next = Math.max(parsed + 24, 1200);
-                if (next === lastHeight) return;
+
+                // Add extra buffer based on zoom level
+                const zoom = getZoomFactor();
+                const zoomBuffer = Math.ceil((zoom - 1) * 50);
+                const next = Math.max(parsed + 30 + zoomBuffer, 1200);
+
+                if (Math.abs(next - lastHeight) < 5) return;
                 lastHeight = next;
                 iframe.style.height = `${next}px`;
                 iframe.style.minHeight = `${next}px`;
@@ -86,6 +122,10 @@
             document.addEventListener('DOMContentLoaded', function() {
                 if (iframe) {
                     iframe.style.minHeight = `${lastHeight}px`;
+                    // Ensure scrolling is disabled
+                    iframe.setAttribute('scrolling', 'no');
+                    iframe.style.overflow = 'hidden';
+
                     iframe.addEventListener('load', function() {
                         applyHeight(lastHeight);
                         console.log('Catalyst Magazine loaded successfully');
@@ -93,7 +133,18 @@
                 }
             });
 
-            window.addEventListener('resize', () => applyHeight(lastHeight));
+            // Listen for resize and zoom changes
+            window.addEventListener('resize', () => {
+                // Force recalculation on resize (may indicate zoom change)
+                applyHeight(lastHeight);
+            });
+
+            // VisualViewport API for zoom detection
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    applyHeight(lastHeight);
+                }, { passive: true });
+            }
         })();
     </script>
 </body>

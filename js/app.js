@@ -3,10 +3,10 @@ const app = {
     editorials: [],
 
     async init() {
-        // 1. ENABLE NATIVE SCROLLING - Let the iframe expand and browser handle scroll
-        // Remove overflow hidden to allow natural scrolling
-        document.documentElement.style.overflow = 'auto';
-        document.body.style.overflow = 'auto';
+        // 1. DISABLE INTERNAL SCROLLING - Parent page handles all scrolling
+        // The iframe expands to full content height, no internal scrollbars
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
         document.documentElement.style.height = 'auto';
         document.body.style.height = 'auto';
         document.body.style.minHeight = '100%';
@@ -455,9 +455,23 @@ const app = {
         // Send the Full Height to parent so it can resize the iframe
         if (window.parent === window) return;
 
+        // Detect browser zoom level (works in Safari and Chrome)
+        const getZoomLevel = () => {
+            // Method 1: devicePixelRatio comparison (works for pinch zoom)
+            const dpr = window.devicePixelRatio || 1;
+            // Method 2: visualViewport scale (most accurate for mobile/pinch)
+            const vpScale = window.visualViewport?.scale || 1;
+            // Method 3: outerWidth/innerWidth ratio (works for browser zoom)
+            const widthRatio = window.outerWidth ? (window.outerWidth / window.innerWidth) : 1;
+            // Use the highest detected zoom to be safe
+            return Math.max(1, vpScale, widthRatio > 0.5 ? widthRatio : 1);
+        };
+
         const computeHeight = () => {
             const body = document.body;
             const doc = document.documentElement;
+
+            // Get all possible height measurements
             const values = [
                 body?.scrollHeight || 0,
                 body?.offsetHeight || 0,
@@ -466,14 +480,23 @@ const app = {
                 doc?.offsetHeight || 0,
                 doc?.clientHeight || 0
             ];
-            // Add a small buffer to avoid rounding issues at higher zoom levels
-            return Math.ceil(Math.max(...values) + 32);
+
+            // Get the maximum height
+            let maxHeight = Math.max(...values);
+
+            // Account for browser zoom - add extra buffer proportional to zoom
+            const zoom = getZoomLevel();
+            // Add generous buffer: base 50px + 5% of height + zoom factor bonus
+            const buffer = Math.ceil(50 + (maxHeight * 0.05) + ((zoom - 1) * 100));
+
+            return Math.ceil(maxHeight + buffer);
         };
 
         let lastHeight = 0;
         const postHeight = () => {
             const height = computeHeight();
-            if (!height || Math.abs(height - lastHeight) < 6) return;
+            // Only skip if heights are very close (within 10px)
+            if (!height || (lastHeight > 0 && Math.abs(height - lastHeight) < 10)) return;
             lastHeight = height;
             const payload = { type: 'setHeight', height };
             const secondary = { type: 'embed-size', height };
@@ -489,20 +512,44 @@ const app = {
             }
         };
 
-        // Initial + timed updates
+        // Initial + timed updates (more frequent for zoom changes)
         postHeight();
-        [500, 1500, 3500].forEach(delay => setTimeout(postHeight, delay));
+        [100, 300, 600, 1200, 2500, 5000].forEach(delay => setTimeout(postHeight, delay));
 
         // Resize/zoom listeners
         ['resize', 'load'].forEach(evt => window.addEventListener(evt, () => requestAnimationFrame(postHeight), { passive: true }));
+
+        // VisualViewport API - critical for detecting zoom on mobile and some desktop browsers
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', postHeight, { passive: true });
+            window.visualViewport.addEventListener('resize', () => {
+                // Force recalculation when viewport changes (zoom)
+                lastHeight = 0;
+                requestAnimationFrame(postHeight);
+            }, { passive: true });
             window.visualViewport.addEventListener('scroll', postHeight, { passive: true });
+        }
+
+        // DevicePixelRatio change detection (zoom in Chrome/Firefox)
+        if (window.matchMedia) {
+            // This fires when browser zoom changes
+            const mqString = `(resolution: ${window.devicePixelRatio}dppx)`;
+            const mq = window.matchMedia(mqString);
+            const handleDPRChange = () => {
+                lastHeight = 0; // Force recalculation
+                postHeight();
+            };
+            if (mq.addEventListener) {
+                mq.addEventListener('change', handleDPRChange);
+            } else if (mq.addListener) {
+                mq.addListener(handleDPRChange);
+            }
         }
 
         // Watch for layout/content changes
         if ('ResizeObserver' in window) {
-            const ro = new ResizeObserver(() => requestAnimationFrame(postHeight));
+            const ro = new ResizeObserver(() => {
+                requestAnimationFrame(postHeight);
+            });
             if (document.body) ro.observe(document.body);
             if (document.documentElement) ro.observe(document.documentElement);
             const feed = document.querySelector('.feed-container');
@@ -512,6 +559,15 @@ const app = {
             const mo = new MutationObserver(() => postHeight());
             mo.observe(document.body, { childList: true, subtree: true, characterData: true });
         }
+
+        // Periodic check as fallback for zoom detection (every 2 seconds)
+        setInterval(() => {
+            const newHeight = computeHeight();
+            if (Math.abs(newHeight - lastHeight) > 20) {
+                lastHeight = 0;
+                postHeight();
+            }
+        }, 2000);
     },
 
 };
