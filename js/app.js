@@ -29,8 +29,6 @@ const app = {
             this.renderCategories();
         }
         this.renderEditorials();
-        this.bindNav();
-        // Note: observeSections removed - using filter mode instead of scroll mode
         
         // Force a height update after render
         setTimeout(() => this.syncEmbedHeight(), 500);
@@ -203,64 +201,6 @@ const app = {
         } else {
             window.location.href = url;
         }
-    },
-
-    // Track current filter state
-    currentFilter: 'recent',
-
-    bindNav() {
-        const nav = document.getElementById('categoryNav');
-        if (!nav) return;
-        nav.querySelectorAll('.nav-pill').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const target = e.currentTarget.dataset.target;
-                this.filterByCategory(target, e);
-            });
-        });
-    },
-
-    setActiveNav(id) {
-        document.querySelectorAll('.nav-pill').forEach(pill => {
-            pill.classList.toggle('active', pill.dataset.target === id);
-        });
-    },
-
-    filterByCategory(category, evt) {
-        // Update active nav pill
-        this.setActiveNav(category);
-        this.currentFilter = category;
-        if (evt?.currentTarget) evt.currentTarget.blur();
-
-        // Get all sections
-        const heroSection = document.getElementById('recent');
-        const categoryRows = document.querySelectorAll('.category-row');
-        const editorialSection = document.getElementById('editorials');
-
-        if (category === 'recent') {
-            // Show everything - "Recent" shows all content
-            if (heroSection) heroSection.style.display = 'block';
-            categoryRows.forEach(row => {
-                row.style.display = 'block';
-            });
-            if (editorialSection) editorialSection.style.display = 'block';
-        } else {
-            // Filter to show only the selected category
-            // Hide hero section when filtering
-            if (heroSection) heroSection.style.display = 'none';
-
-            // Show only the matching category row
-            categoryRows.forEach(row => {
-                const rowCat = row.dataset.cat;
-                row.style.display = (rowCat === category) ? 'block' : 'none';
-            });
-
-            // Hide editorials when filtering (unless we add editorial filter)
-            if (editorialSection) editorialSection.style.display = 'none';
-        }
-
-        // Update height after filtering (content changes)
-        setTimeout(() => this.syncEmbedHeight(), 100);
-        setTimeout(() => this.syncEmbedHeight(), 300);
     },
 
     renderHero() {
