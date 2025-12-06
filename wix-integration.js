@@ -8,8 +8,9 @@ $w.onReady(function () {
     const applyHeight = (rawHeight) => {
         const parsed = Number(rawHeight);
         if (!parsed || Number.isNaN(parsed)) return;
-        const next = Math.max(Math.ceil(parsed) + 24, MIN_HEIGHT);
-        if (htmlComponent.height !== next) {
+        // Add generous buffer (100px) to prevent cutoff at zoom levels
+        const next = Math.max(Math.ceil(parsed) + 100, MIN_HEIGHT);
+        if (Math.abs(htmlComponent.height - next) > 10) {
             htmlComponent.height = next;
         }
     };

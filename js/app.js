@@ -31,7 +31,7 @@ const app = {
         this.renderEditorials();
         this.initSearch();
         this.bindNav();
-        this.observeSections();
+        // Note: observeSections removed - using filter mode instead of scroll mode
         
         // Force a height update after render
         setTimeout(() => this.syncEmbedHeight(), 500);
@@ -206,13 +206,16 @@ const app = {
         }
     },
 
+    // Track current filter state
+    currentFilter: 'recent',
+
     bindNav() {
         const nav = document.getElementById('categoryNav');
         if (!nav) return;
         nav.querySelectorAll('.nav-pill').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const target = e.currentTarget.dataset.target;
-                this.scrollToSection(target, e);
+                this.filterByCategory(target, e);
             });
         });
     },
@@ -223,20 +226,42 @@ const app = {
         });
     },
 
-    scrollToSection(id, evt) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        
-        // When using iframe height expansion, we need to ask the parent window to scroll
-        // Since we can't scroll the parent directly due to cross-origin, we can try to
-        // send a message or just rely on native behavior if same-origin.
-        // For Wix Embeds, internal anchor scrolling is tricky. 
-        // Best approach: Just scroll the iframe internal content, which might work if iframe is huge.
-        
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        this.setActiveNav(id);
+    filterByCategory(category, evt) {
+        // Update active nav pill
+        this.setActiveNav(category);
+        this.currentFilter = category;
         if (evt?.currentTarget) evt.currentTarget.blur();
+
+        // Get all sections
+        const heroSection = document.getElementById('recent');
+        const categoryRows = document.querySelectorAll('.category-row');
+        const editorialSection = document.getElementById('editorials');
+
+        if (category === 'recent') {
+            // Show everything - "Recent" shows all content
+            if (heroSection) heroSection.style.display = 'block';
+            categoryRows.forEach(row => {
+                row.style.display = 'block';
+            });
+            if (editorialSection) editorialSection.style.display = 'block';
+        } else {
+            // Filter to show only the selected category
+            // Hide hero section when filtering
+            if (heroSection) heroSection.style.display = 'none';
+
+            // Show only the matching category row
+            categoryRows.forEach(row => {
+                const rowCat = row.dataset.cat;
+                row.style.display = (rowCat === category) ? 'block' : 'none';
+            });
+
+            // Hide editorials when filtering (unless we add editorial filter)
+            if (editorialSection) editorialSection.style.display = 'none';
+        }
+
+        // Update height after filtering (content changes)
+        setTimeout(() => this.syncEmbedHeight(), 100);
+        setTimeout(() => this.syncEmbedHeight(), 300);
     },
 
     renderHero() {
@@ -366,34 +391,45 @@ const app = {
         const searchInput = document.getElementById('searchInput');
         if (!searchInput) return;
         searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
+            const term = e.target.value.toLowerCase().trim();
+
+            // If search is empty, restore category filter state
+            if (!term) {
+                // Remove hidden class from all cards
+                document.querySelectorAll('.data-card').forEach(card => {
+                    card.classList.remove('hidden');
+                });
+                // Re-apply current category filter
+                this.filterByCategory(this.currentFilter);
+                document.getElementById('noResults')?.classList.add('hidden');
+                return;
+            }
+
+            // Reset to show all sections first (search across everything)
+            document.getElementById('recent')?.style.removeProperty('display');
+            document.querySelectorAll('.category-row').forEach(row => row.style.removeProperty('display'));
+            document.getElementById('editorials')?.style.removeProperty('display');
+
             let visibleCount = 0;
             document.querySelectorAll('.data-card').forEach(card => {
                 const match = [card.dataset.title, card.dataset.auth, card.dataset.excerpt, card.dataset.cat].some(t => t && t.includes(term));
                 card.classList.toggle('hidden', !match);
                 if (match) visibleCount++;
             });
+
+            // Hide sections that have no visible cards
             document.querySelectorAll('.category-row, .hero-section, .editorial-section').forEach(sec => {
-                sec.style.display = sec.querySelectorAll('.data-card:not(.hidden)').length > 0 ? 'block' : 'none';
+                const hasVisible = sec.querySelectorAll('.data-card:not(.hidden)').length > 0;
+                sec.style.display = hasVisible ? 'block' : 'none';
             });
+
             const noResults = document.getElementById('noResults');
             if (noResults) noResults.classList.toggle('hidden', visibleCount !== 0);
-            this.syncEmbedHeight(); // Resize after filtering
-        });
-    },
 
-    observeSections() {
-        // Simple observer for active nav state
-        const sections = document.querySelectorAll('.category-row, #recent');
-        if (!('IntersectionObserver' in window) || sections.length === 0) return;
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    this.setActiveNav(entry.target.id === 'recent' ? 'recent' : entry.target.dataset.cat);
-                }
-            });
-        }, { threshold: 0.1 }); // Lower threshold for tall iframe
-        sections.forEach(section => observer.observe(section));
+            // Update height after search filtering
+            setTimeout(() => this.syncEmbedHeight(), 100);
+            setTimeout(() => this.syncEmbedHeight(), 300);
+        });
     },
 
     buildHeroMarquee(track) {
@@ -481,13 +517,23 @@ const app = {
                 doc?.clientHeight || 0
             ];
 
+            // Also measure the feed container directly
+            const feed = document.querySelector('.feed-container');
+            if (feed) {
+                values.push(feed.scrollHeight || 0);
+                values.push(feed.offsetHeight || 0);
+                // Get bounding rect for most accurate measurement
+                const rect = feed.getBoundingClientRect();
+                values.push(Math.ceil(rect.bottom + window.scrollY));
+            }
+
             // Get the maximum height
             let maxHeight = Math.max(...values);
 
-            // Account for browser zoom - add extra buffer proportional to zoom
+            // Account for browser zoom - add VERY generous buffer
             const zoom = getZoomLevel();
-            // Add generous buffer: base 50px + 5% of height + zoom factor bonus
-            const buffer = Math.ceil(50 + (maxHeight * 0.05) + ((zoom - 1) * 100));
+            // Increased buffer: base 150px + 10% of height + larger zoom factor bonus
+            const buffer = Math.ceil(150 + (maxHeight * 0.10) + ((zoom - 1) * 200));
 
             return Math.ceil(maxHeight + buffer);
         };

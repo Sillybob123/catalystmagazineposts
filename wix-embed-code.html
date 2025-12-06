@@ -88,10 +88,11 @@
                 if (!iframe) return;
                 const parsed = Math.ceil(Number(rawHeight) || 0);
 
-                // Add extra buffer based on zoom level
+                // Add extra buffer based on zoom level - be VERY generous
                 const zoom = getZoomFactor();
-                const zoomBuffer = Math.ceil((zoom - 1) * 50);
-                const next = Math.max(parsed + 30 + zoomBuffer, 1200);
+                const zoomBuffer = Math.ceil((zoom - 1) * 150);
+                // Add 100px base buffer + zoom buffer
+                const next = Math.max(parsed + 100 + zoomBuffer, 1200);
 
                 if (Math.abs(next - lastHeight) < 5) return;
                 lastHeight = next;
